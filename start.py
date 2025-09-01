@@ -202,7 +202,7 @@ def start_langgraph_studio(venv_python):
     try:
         # Set up environment variables for LangGraph Studio
         env = os.environ.copy()
-        env["LANGCHAIN_API_KEY"] = "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"
+        env["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", "your-langsmith-api-key-here")
         env["LANGCHAIN_TRACING_V2"] = "true"
         env["LANGCHAIN_PROJECT"] = "trip-planner"
         env["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"

@@ -4,7 +4,7 @@ GOOGLE_CLOUD_LOCATION=us-central1
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
 
 # Gemini API Configuration
-GOOGLE_API_KEY=AIzaSyBB8y79iYeJe_k0G9A_qANMIVG-EDdqgRU
+GOOGLE_API_KEY=your-google-api-key-here
 
 # LangSmith Configuration
 LANGCHAIN_API_KEY=your-langsmith-api-key-here
