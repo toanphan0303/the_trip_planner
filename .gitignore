@@ -64,6 +64,8 @@ logs/
 
 # LangGraph
 .langgraph/
+.langgraph_api/
+*.pckl
 
 # Jupyter Notebook
 .ipynb_checkpoints
