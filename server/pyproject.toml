@@ -1,0 +1,24 @@
+[project]
+name = "server"
+version = "0.1"
+description = "LangGraph Trip Planner Server"
+requires-python = ">=3.9"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.7.4",
+    "typing-extensions>=4.12.0",
+    "langchain-core>=0.3.67",
+    "langchain>=0.3.0",
+    "langsmith>=0.2.0",
+    "langchain-google-vertexai>=2.0.0",
+    "langgraph>=0.2.0",
+    "google-cloud-aiplatform>=1.97.0",
+    "google-auth>=2.23.4",
+]
+
+[tool.setuptools.package-data]
+"*" = ["**/*"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

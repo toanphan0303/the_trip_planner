@@ -1,0 +1,13 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "trip_planner": "studio_graph:graph"
+  },
+  "env": ".env",
+  "input_schema": {
+    "user_input": {
+      "type": "string",
+      "description": "The user's message or question"
+    }
+  }
+}

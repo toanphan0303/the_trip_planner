@@ -1,0 +1,13 @@
+# Google Cloud Configuration
+GOOGLE_CLOUD_PROJECT=your-project-id-here
+GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
+
+# Gemini API Configuration
+GOOGLE_API_KEY=AIzaSyBB8y79iYeJe_k0G9A_qANMIVG-EDdqgRU
+
+# LangSmith Configuration
+LANGCHAIN_API_KEY=your-langsmith-api-key-here
+LANGCHAIN_PROJECT=your-langsmith-project-name
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
