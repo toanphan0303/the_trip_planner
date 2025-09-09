@@ -195,7 +195,7 @@ def install_langgraph_cli(venv_python):
 
 
 
-def start_langgraph_studio(venv_python):
+def start_langgraph_studio(venv_python, enable_debug=False):
     """Start LangGraph Studio using virtual environment"""
     print("🎨 Starting LangGraph Studio...")
     
@@ -206,6 +206,13 @@ def start_langgraph_studio(venv_python):
         env["LANGCHAIN_TRACING_V2"] = "true"
         env["LANGCHAIN_PROJECT"] = "trip-planner"
         env["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+        
+        # Enable debugging if requested
+        if enable_debug:
+            env["ENABLE_REMOTE_DEBUG"] = "true"
+            env["DEBUG_PORT"] = "5678"
+            print("🐛 Remote debugging enabled on port 5678")
+            print("   Connect your debugger to localhost:5678")
         
         # No Docker environment variables needed for in-memory mode
         
@@ -277,6 +284,13 @@ def print_summary(studio_process):
     print("   📋 Logs:               Displayed in real-time below")
     
     print()
+    print("🐛 Debugging:")
+    print("   🔌 Remote Debug Port: 5678")
+    print("   🔧 VS Code Config:    'Attach to LangSmith Studio'")
+    print("   📍 Connect to:        localhost:5678")
+    print("   💡 Set breakpoints in your code, then attach debugger")
+    
+    print()
     print("🐍 Virtual Environment:")
     print("   📁 Location:          ./venv/")
     print("   🔧 Activate:          source venv/bin/activate")
@@ -296,6 +310,10 @@ def print_summary(studio_process):
 def main():
     """Main startup function"""
     print_banner()
+    
+    # Enable debugging by default
+    enable_debug = True
+    print("🐛 Debug mode enabled by default")
     
     # Store original directory
     original_dir = os.getcwd()
@@ -328,7 +346,7 @@ def main():
                 sys.exit(1)
         
         # Start LangGraph Studio
-        studio_process = start_langgraph_studio(venv_python)
+        studio_process = start_langgraph_studio(venv_python, enable_debug=enable_debug)
         
         if not studio_process:
             print("❌ Cannot continue without LangGraph Studio")
