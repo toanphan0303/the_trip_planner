@@ -2,13 +2,30 @@
 # Get your API key from: https://aistudio.google.com/app/apikey
 GOOGLE_API_KEY=your-google-api-key-here
 
+# Ticketmaster API Configuration (Required for event search)
+# Get your API key from: https://developer.ticketmaster.com/
+TICKETMASTER_API_KEY=your-ticketmaster-api-key-here
+
+# Yelp API Configuration (Required for business search)
+# Get your API key from: https://www.yelp.com/developers/documentation/v3/authentication
+YELP_API_KEY=your-yelp-api-key-here
+
+# Foursquare API Configuration (Required for venue search)
+# Get your API key from: https://developer.foursquare.com/
+FOURSQUARE_API_KEY=your-foursquare-api-key-here
+
 # Optional: Google Cloud Configuration (only needed for Vertex AI service account auth)
 # GOOGLE_CLOUD_PROJECT=your-project-id-here
 # GOOGLE_CLOUD_LOCATION=us-central1
 # GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
 
-# LangSmith Configuration
+# LangSmith Configuration (Optional - for monitoring and tracing)
+# Get your API key from: https://smith.langchain.com/
 LANGCHAIN_API_KEY=your-langsmith-api-key-here
-LANGCHAIN_PROJECT=your-langsmith-project-name
+LANGCHAIN_PROJECT=trip-planner
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+
+# MongoDB Configuration (Optional - for persistent caching)
+# Docker container connection string (used by start.py)
+MONGODB_URI=mongodb://admin:trip_planner_pass@localhost:27017/

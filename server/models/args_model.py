@@ -35,3 +35,7 @@ class PlanTripForDestinationsArgs(BaseModel):
         None,
         description="Budget level: 'low', 'mid', or 'high'. Guides activity/restaurant recommendations."
     )
+    max_results: Optional[int] = Field(
+        10,
+        description="Maximum number of places to return per category. Higher values provide more comprehensive results but may increase processing time. Default: 10."
+    )

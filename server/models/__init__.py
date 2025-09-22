@@ -9,10 +9,10 @@ This package contains:
 # AI Model Management - Only what's actually used
 from .ai_models import create_vertex_ai_model
 
-
-# Note: Most function calling models are not currently used in the codebase
-# They can be imported directly when needed:
-# from .function_calling import Destination, TripPlan, etc.
+# Data Models - Import when needed
+# from .point_of_interest_models import PointOfInterest, PointOfInterestSearchResult, Source
+# from .yelp_model import YelpPointOfInterest
+# from .foursquare_model import FoursquareVenue, FoursquareSearchResponse
 
 __all__ = [
     "create_vertex_ai_model",
