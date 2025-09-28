@@ -29,3 +29,18 @@ LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 # MongoDB Configuration (Optional - for persistent caching)
 # Docker container connection string (used by start.py)
 MONGODB_URI=mongodb://admin:trip_planner_pass@localhost:27017/
+
+# Facebook Authentication Configuration (Required for user authentication)
+# Get your App ID and Secret from: https://developers.facebook.com/apps/
+FACEBOOK_APP_ID=your-facebook-app-id-here
+FACEBOOK_APP_SECRET=your-facebook-app-secret-here
+FACEBOOK_REDIRECT_URI=http://localhost:8000/auth/facebook/callback
+
+# JWT Configuration (Required for authentication)
+# Generate a secure secret key for JWT token signing
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# FastAPI Configuration (Optional)
+HOST=0.0.0.0
+PORT=8000
+DEBUG=false

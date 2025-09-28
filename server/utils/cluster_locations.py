@@ -23,13 +23,18 @@ def is_restaurant(poi: PointOfInterest) -> bool:
     Returns:
         True if the POI is a restaurant, False otherwise
     """
-    if not poi.category:
+    if not poi.types:
         return False
     
     # Get all food and drink related place types from the constants
     food_types = PlaceTypes.get_food_types()
     
-    return poi.category.lower() in food_types
+    # Check if any of the POI's types match food types
+    for type_name in poi.types:
+        if type_name.lower() in food_types:
+            return True
+    
+    return False
 
 
 def _filter_clusters_by_restaurant_constraint(
@@ -897,33 +902,3 @@ def cluster_and_anchor_pois(
     return clusters, anchors
 
 
-def get_cluster_statistics(clusters: Dict[int, List[PointOfInterest]]) -> Dict[str, any]:
-    """
-    Get statistics about the clustering results.
-    
-    Args:
-        clusters: Dictionary mapping cluster_id to list of POIs
-        
-    Returns:
-        Dictionary with clustering statistics
-    """
-    if not clusters:
-        return {
-            "total_clusters": 0,
-            "total_pois": 0,
-            "cluster_sizes": [],
-            "avg_cluster_size": 0,
-            "largest_cluster_size": 0,
-            "smallest_cluster_size": 0
-        }
-    
-    cluster_sizes = [len(pois) for pois in clusters.values()]
-    
-    return {
-        "total_clusters": len(clusters),
-        "total_pois": sum(cluster_sizes),
-        "cluster_sizes": cluster_sizes,
-        "avg_cluster_size": sum(cluster_sizes) / len(cluster_sizes),
-        "largest_cluster_size": max(cluster_sizes),
-        "smallest_cluster_size": min(cluster_sizes)
-    }

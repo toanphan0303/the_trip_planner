@@ -5,7 +5,7 @@ Foursquare API client using base API infrastructure with comprehensive caching
 from typing import Optional, Dict, Any, List
 from cache.mongo_cache_decorator import mongo_cached
 from .base_api import BaseAPI
-from server.models.point_of_interest_models import PointOfInterest, PointOfInterestSearchResult, Location, POIType, Source
+from models.point_of_interest_models import PointOfInterest, Location, POIType, Source
 # from models.foursquare_model import FoursquareSearchResponse, FoursquareVenueDetailResponse
 
 
@@ -190,7 +190,7 @@ class FoursquareAPI(BaseAPI):
         sort: Optional[str] = None,  # DISTANCE, POPULARITY, RATING
         limit: int = 20,
         offset: int = 0
-    ) -> PointOfInterestSearchResult:
+    ) -> List[PointOfInterest]:
         """
         Search for venues using Foursquare API
         
@@ -256,14 +256,7 @@ class FoursquareAPI(BaseAPI):
             except ValueError:
                 pass
         
-        return PointOfInterestSearchResult(
-            items=poi_items,
-            total_count=len(poi_items),
-            places_count=len(poi_items),
-            events_count=0,
-            search_center=search_center,
-            search_radius_km=radius / 1000.0 if radius else None
-        )
+        return poi_items
     
     @mongo_cached("foursquare_venue_details")
     def venue_details(self, venue_id: str, fields: Optional[List[str]] = None) -> PointOfInterest:
@@ -355,14 +348,14 @@ class FoursquareAPI(BaseAPI):
         return response_data
     
     @mongo_cached("foursquare_venue_tips")
-    def venue_tips(self, venue_id: str, limit: int = 10, sort: str = "recent") -> List[Dict[str, Any]]:
+    def venue_tips(self, venue_id: str, limit: int = 10, sort: str = "POPULAR") -> List[Dict[str, Any]]:
         """
         Get tips for a specific venue
         
         Args:
             venue_id: Foursquare venue ID
             limit: Number of tips to return (max 50)
-            sort: Sort order (recent, popular)
+            sort: Sort order (NEWEST, POPULAR)
             
         Returns:
             List of tip dictionaries
@@ -382,7 +375,13 @@ class FoursquareAPI(BaseAPI):
         
         response_data = self._get(endpoint, params=params, headers=headers)
         
-        return response_data.get('results', [])
+        # Handle both list and dict responses
+        if isinstance(response_data, list):
+            return response_data
+        elif isinstance(response_data, dict):
+            return response_data.get('results', [])
+        else:
+            return []
     
     @mongo_cached("foursquare_venue_search")
     async def venue_search_async(
@@ -398,7 +397,7 @@ class FoursquareAPI(BaseAPI):
         sort: Optional[str] = None,
         limit: int = 20,
         offset: int = 0
-    ) -> PointOfInterestSearchResult:
+    ) -> List[PointOfInterest]:
         """
         Search for venues using Foursquare API asynchronously
         
@@ -464,14 +463,7 @@ class FoursquareAPI(BaseAPI):
             except ValueError:
                 pass
         
-        return PointOfInterestSearchResult(
-            items=poi_items,
-            total_count=len(poi_items),
-            places_count=len(poi_items),
-            events_count=0,
-            search_center=search_center,
-            search_radius_km=radius / 1000.0 if radius else None
-        )
+        return poi_items
     
     def clear_cache(self, cache_type: Optional[str] = None):
         """
@@ -520,14 +512,14 @@ except ValueError:
     _foursquare_api = None
 
 def foursquare_venue_search(query: str, *, ll: Optional[str] = None, near: Optional[str] = None, 
-                           radius: Optional[int] = None, limit: int = 20) -> PointOfInterestSearchResult:
+                           radius: Optional[int] = None, limit: int = 20) -> List[PointOfInterest]:
     """Convenience function for Foursquare venue search"""
     if _foursquare_api is None:
         raise ValueError("Foursquare API not available - API key not set")
     return _foursquare_api.venue_search(query, ll=ll, near=near, radius=radius, limit=limit)
 
 async def foursquare_venue_search_async(query: str, *, ll: Optional[str] = None, near: Optional[str] = None, 
-                                       radius: Optional[int] = None, limit: int = 20) -> PointOfInterestSearchResult:
+                                       radius: Optional[int] = None, limit: int = 20) -> List[PointOfInterest]:
     """Convenience function for async Foursquare venue search"""
     if _foursquare_api is None:
         raise ValueError("Foursquare API not available - API key not set")
@@ -539,7 +531,7 @@ def foursquare_venue_details(venue_id: str, fields: Optional[List[str]] = None) 
         raise ValueError("Foursquare API not available - API key not set")
     return _foursquare_api.venue_details(venue_id, fields=fields)
 
-def foursquare_venue_tips(venue_id: str, limit: int = 10, sort: str = "recent") -> List[Dict[str, Any]]:
+def foursquare_venue_tips(venue_id: str, limit: int = 10, sort: str = "POPULAR") -> List[Dict[str, Any]]:
     """Convenience function for Foursquare venue tips"""
     if _foursquare_api is None:
         raise ValueError("Foursquare API not available - API key not set")
@@ -569,6 +561,34 @@ def foursquare_places_match(
         ll=ll,
         fields=fields
     )
+
+
+def foursquare_places_match_with_request(request: 'FoursquarePlacesMatchRequest') -> Dict[str, Any]:
+    """Convenience function for Foursquare places match using request model"""
+    if _foursquare_api is None:
+        raise ValueError("Foursquare API not available - API key not set")
+    return _foursquare_api.places_match(**request.to_params())
+
+
+def foursquare_venue_search_with_request(request: 'FoursquareVenueSearchRequest') -> List[PointOfInterest]:
+    """Convenience function for Foursquare venue search using request model"""
+    if _foursquare_api is None:
+        raise ValueError("Foursquare API not available - API key not set")
+    return _foursquare_api.venue_search(**request.to_params())
+
+
+def foursquare_venue_details_with_request(request: 'FoursquareVenueDetailsRequest') -> Dict[str, Any]:
+    """Convenience function for Foursquare venue details using request model"""
+    if _foursquare_api is None:
+        raise ValueError("Foursquare API not available - API key not set")
+    return _foursquare_api.venue_details(request.venue_id, **request.to_params())
+
+
+def foursquare_venue_tips_with_request(request: 'FoursquareVenueTipsRequest') -> List[Dict[str, Any]]:
+    """Convenience function for Foursquare venue tips using request model"""
+    if _foursquare_api is None:
+        raise ValueError("Foursquare API not available - API key not set")
+    return _foursquare_api.venue_tips(request.venue_id, **request.to_params())
 
 
 # Cache management convenience functions

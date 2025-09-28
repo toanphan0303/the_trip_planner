@@ -3,7 +3,7 @@ Foursquare-specific data models for Places API v3
 """
 
 from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from enum import Enum
 
 
@@ -113,55 +113,6 @@ class FoursquarePlace(BaseModel):
         """Get the primary category"""
         return self.categories[0] if self.categories else None
     
-    def get_all_category_names(self) -> List[str]:
-        """Get all category names"""
-        return [cat.name for cat in self.categories]
-    
-    def get_primary_category_name(self) -> Optional[str]:
-        """Get the primary category name"""
-        primary = self.get_primary_category()
-        return primary.name if primary else None
-    
-    def get_formatted_address(self) -> str:
-        """Get formatted address string"""
-        if self.location.formatted_address:
-            return self.location.formatted_address
-        
-        address_parts = []
-        if self.location.address:
-            address_parts.append(self.location.address)
-        if self.location.locality and self.location.region:
-            address_parts.append(f"{self.location.locality}, {self.location.region}")
-        elif self.location.locality:
-            address_parts.append(self.location.locality)
-        if self.location.postcode:
-            address_parts.append(self.location.postcode)
-        
-        return ", ".join(address_parts)
-    
-    def get_phone_number(self) -> Optional[str]:
-        """Get phone number"""
-        return self.tel
-    
-    def get_website_url(self) -> Optional[str]:
-        """Get website URL"""
-        return self.website
-    
-    def get_price_level(self) -> Optional[int]:
-        """Get price level (1-4)"""
-        return self.price
-    
-    def get_rating_normalized(self) -> Optional[float]:
-        """Get rating normalized to 0-5 scale (Foursquare uses 0-10)"""
-        if self.rating is None:
-            return None
-        return self.rating / 2.0  # Convert from 0-10 to 0-5 scale
-    
-    def get_distance_km(self) -> Optional[float]:
-        """Get distance in kilometers"""
-        if self.distance is None:
-            return None
-        return self.distance / 1000.0
 
 
 class FoursquareGeoBounds(BaseModel):
@@ -179,27 +130,182 @@ class FoursquareSearchResponse(BaseModel):
     results: List[FoursquarePlace] = Field(default_factory=list, description="List of places")
     context: Optional[FoursquareContext] = Field(None, description="Search context")
     
-    def get_place_by_id(self, place_id: str) -> Optional[FoursquarePlace]:
-        """Get place by ID"""
-        for place in self.results:
-            if place.fsq_place_id == place_id:
-                return place
-        return None
+
+
+class FoursquareTip(BaseModel):
+    """Foursquare tip model for venue tips"""
+    fsq_tip_id: str = Field(..., description="Foursquare tip ID")
+    created_at: str = Field(..., description="Tip creation date (ISO 8601)")
+    text: str = Field(..., description="Tip text content")
     
-    def get_places_by_category(self, category_name: str) -> List[FoursquarePlace]:
-        """Get places by category name"""
-        return [
-            place for place in self.results 
-            if any(cat.name.lower() == category_name.lower() for cat in place.categories)
-        ]
+    def get_created_date(self) -> Optional[str]:
+        """Get creation date in readable format"""
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(self.created_at.replace('Z', '+00:00'))
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError):
+            return self.created_at
+
+
+class FoursquarePlacesMatchContext(BaseModel):
+    """Foursquare places match context model"""
+    latitude: float = Field(..., description="Search latitude")
+    longitude: float = Field(..., description="Search longitude")
+
+
+class FoursquarePlacesMatchResponse(BaseModel):
+    """Foursquare places match response model"""
+    place: FoursquarePlace = Field(..., description="Matched place information")
+    match_score: float = Field(..., description="Match confidence score (0-1)")
+    context: FoursquarePlacesMatchContext = Field(..., description="Search context")
     
-    def get_places_with_phone(self) -> List[FoursquarePlace]:
-        """Get places that have phone numbers"""
-        return [place for place in self.results if place.tel]
+    def get_match_percentage(self) -> float:
+        """Get match score as percentage"""
+        return round(self.match_score * 100, 2)
     
-    def get_places_with_website(self) -> List[FoursquarePlace]:
-        """Get places that have websites"""
-        return [place for place in self.results if place.website]
+    def is_high_confidence_match(self, threshold: float = 0.7) -> bool:
+        """Check if this is a high confidence match"""
+        return self.match_score >= threshold
+
+
+class FoursquareVenueTipsResponse(BaseModel):
+    """Foursquare venue tips response model"""
+    tips: List[FoursquareTip] = Field(default_factory=list, description="List of venue tips")
+    
+    def get_tips_count(self) -> int:
+        """Get number of tips"""
+        return len(self.tips)
+    
+
+
+# Request Models for API Parameters
+
+class FoursquareSortOrder(str, Enum):
+    """Foursquare sort order enumeration"""
+    DISTANCE = "DISTANCE"
+    POPULARITY = "POPULARITY"
+    RATING = "RATING"
+    NEWEST = "NEWEST"
+    POPULAR = "POPULAR"
+
+
+class FoursquareVenueSearchRequest(BaseModel):
+    """Request model for Foursquare venue search"""
+    query: str = Field(..., description="Search query (e.g., 'coffee', 'restaurants')")
+    ll: Optional[str] = Field(None, description="Latitude and longitude (e.g., '37.7749,-122.4194')")
+    near: Optional[str] = Field(None, description="Location to search near (e.g., 'San Francisco, CA')")
+    radius: Optional[int] = Field(None, ge=1, le=100000, description="Search radius in meters (max 100000)")
+    categories: Optional[List[str]] = Field(None, description="List of category IDs to filter by")
+    price: Optional[List[int]] = Field(None, description="List of price levels to filter by (1-4)")
+    open_now: Optional[bool] = Field(None, description="Filter for venues currently open")
+    sort: Optional[FoursquareSortOrder] = Field(None, description="Sort results by")
+    limit: int = Field(50, ge=1, le=50, description="Number of results to return (max 50)")
+    offset: int = Field(0, ge=0, description="Offset for pagination")
+    
+    @model_validator(mode='after')
+    def validate_location(self):
+        """Validate that either ll or near is provided"""
+        if not self.ll and not self.near:
+            raise ValueError("Either 'll' (latitude,longitude) or 'near' location must be provided")
+        return self
+    
+    def to_params(self) -> Dict[str, Any]:
+        """Convert to API parameters"""
+        params = {
+            "query": self.query,
+            "limit": self.limit,
+        }
+        
+        if self.ll:
+            params["ll"] = self.ll
+        if self.near:
+            params["near"] = self.near
+        if self.radius:
+            params["radius"] = min(self.radius, 100000)
+        if self.categories:
+            params["categories"] = ",".join(self.categories)
+        if self.price:
+            params["price"] = ",".join(map(str, self.price))
+        if self.open_now:
+            params["open_now"] = "true"
+        if self.sort:
+            params["sort"] = self.sort.value
+        if self.offset:
+            params["offset"] = self.offset
+            
+        return params
+
+
+class FoursquareVenueDetailsRequest(BaseModel):
+    """Request model for Foursquare venue details"""
+    venue_id: str = Field(..., description="Foursquare venue ID")
+    fields: Optional[str] = Field(None, description="Comma-separated list of fields to return")
+    
+    def to_params(self) -> Dict[str, Any]:
+        """Convert to API parameters"""
+        params = {}
+        if self.fields:
+            params["fields"] = self.fields
+        return params
+
+
+class FoursquareVenueTipsRequest(BaseModel):
+    """Request model for Foursquare venue tips"""
+    venue_id: str = Field(..., description="Foursquare venue ID")
+    limit: int = Field(10, ge=1, le=50, description="Number of tips to return (max 50)")
+    sort: FoursquareSortOrder = Field(FoursquareSortOrder.POPULAR, description="Sort order for tips")
+    
+    def to_params(self) -> Dict[str, Any]:
+        """Convert to API parameters"""
+        return {
+            "limit": self.limit,
+            "sort": self.sort.value,
+        }
+
+
+class FoursquarePlacesMatchRequest(BaseModel):
+    """Request model for Foursquare places match"""
+    name: str = Field(..., max_length=64, description="Name of the place to match")
+    address: Optional[str] = Field(None, max_length=64, description="Street address of the place")
+    city: Optional[str] = Field(None, max_length=64, description="City where the place is located")
+    state: Optional[str] = Field(None, max_length=64, description="State or region name")
+    postal_code: Optional[str] = Field(None, max_length=12, description="Postal code")
+    cc: Optional[str] = Field(None, min_length=2, max_length=2, description="Country code (ISO 3166-1 alpha-2)")
+    ll: Optional[str] = Field(None, description="Latitude,longitude coordinates")
+    fields: Optional[str] = Field(None, description="Comma-separated list of fields to return")
+    
+    @model_validator(mode='after')
+    def validate_location(self):
+        """Validate that either ll or (address, city, cc) is provided"""
+        has_coordinates = bool(self.ll)
+        has_address_info = bool(self.address and self.city and self.cc)
+        
+        if not has_coordinates and not has_address_info:
+            raise ValueError("Either 'll' (coordinates) or ('address', 'city', 'cc') must be provided")
+        
+        return self
+    
+    def to_params(self) -> Dict[str, Any]:
+        """Convert to API parameters"""
+        params = {"name": self.name}
+        
+        if self.address is not None:
+            params["address"] = self.address
+        if self.city is not None:
+            params["city"] = self.city
+        if self.state is not None:
+            params["state"] = self.state
+        if self.postal_code is not None:
+            params["postal_code"] = self.postal_code
+        if self.cc is not None:
+            params["cc"] = self.cc
+        if self.ll is not None:
+            params["ll"] = self.ll
+        if self.fields is not None:
+            params["fields"] = self.fields
+            
+        return params
 
 
 # Backward compatibility aliases

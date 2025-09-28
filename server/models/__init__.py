@@ -10,7 +10,7 @@ This package contains:
 from .ai_models import create_vertex_ai_model
 
 # Data Models - Import when needed
-# from .point_of_interest_models import PointOfInterest, PointOfInterestSearchResult, Source
+# from .point_of_interest_models import PointOfInterest, Source
 # from .yelp_model import YelpPointOfInterest
 # from .foursquare_model import FoursquareVenue, FoursquareSearchResponse
 

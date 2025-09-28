@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Preferences - Trip Planner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .preferences-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .preference-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .preference-item h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 1.1em;
+        }
+        
+        .preference-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+        
+        .api-endpoints {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .endpoint {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .endpoint-method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8em;
+            margin-right: 10px;
+        }
+        
+        .get { background: #28a745; color: white; }
+        .post { background: #007bff; color: white; }
+        .put { background: #ffc107; color: black; }
+        .patch { background: #fd7e14; color: white; }
+        .delete { background: #dc3545; color: white; }
+        
+        .endpoint-url {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .endpoint-description {
+            margin-top: 8px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .demo-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        
+        .demo-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .demo-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧑‍💼 User Preferences</h1>
+            <p>Comprehensive preference management for personalized trip planning</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>🍽️ Food Preferences</h2>
+                <div class="preferences-grid">
+                    <div class="preference-item">
+                        <h3>Cuisine Types</h3>
+                        <p>Japanese, Thai, Italian, French, Mexican, Indian, Korean, Chinese, Vietnamese, American, Mediterranean, Middle Eastern</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Food Types</h3>
+                        <p>Fine Dining, Street Food, Local, International, Fusion, Casual, Fast Food, Vegetarian, Vegan, Halal, Kosher</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Budget Levels</h3>
+                        <p>Budget, Moderate, Luxury</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Special Features</h3>
+                        <p>Spice Tolerance (1-5), Dietary Restrictions, Alcohol Preference, Meal Preferences</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🏨 Stay Preferences</h2>
+                <div class="preferences-grid">
+                    <div class="preference-item">
+                        <h3>Accommodation Types</h3>
+                        <p>Hotel, Resort, Hostel, Bed & Breakfast, Vacation Rental, Boutique, Apartment, Camping</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Amenities</h3>
+                        <p>WiFi, Air Conditioning, Parking, Breakfast, Gym, Pool, Spa</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Location Preferences</h3>
+                        <p>City Center, Near Transport, Quiet Area, Tourist Area</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Timing</h3>
+                        <p>Check-in/Check-out Times, Room Preferences</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>✈️ Travel Preferences</h2>
+                <div class="preferences-grid">
+                    <div class="preference-item">
+                        <h3>Travel Styles</h3>
+                        <p>Adventure, Relaxation, Cultural, Business, Family, Solo, Couple, Group, Backpacking, Luxury</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Transport Modes</h3>
+                        <p>Walking, Public Transport, Taxi, Rental Car, Bicycle, Motorcycle, Bus, Train, Plane, Boat</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Activities</h3>
+                        <p>Sightseeing, Museums, Nightlife, Shopping, Outdoor, Sports, Wellness, Entertainment, Food Tours, Adventure</p>
+                    </div>
+                    <div class="preference-item">
+                        <h3>Planning</h3>
+                        <p>Group Size, Duration Preferences, Season Preferences, Weather Preferences, Accessibility Needs</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔧 API Endpoints</h2>
+                <div class="api-endpoints">
+                    <div class="endpoint">
+                        <span class="endpoint-method get">GET</span>
+                        <span class="endpoint-url">/user-profile/preferences</span>
+                        <div class="endpoint-description">Get current user's preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method post">POST</span>
+                        <span class="endpoint-url">/user-profile/preferences</span>
+                        <div class="endpoint-description">Create or update complete user preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method patch">PATCH</span>
+                        <span class="endpoint-url">/user-profile/preferences</span>
+                        <div class="endpoint-description">Update specific parts of user preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method put">PUT</span>
+                        <span class="endpoint-url">/user-profile/preferences/food</span>
+                        <div class="endpoint-description">Update only food preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method put">PUT</span>
+                        <span class="endpoint-url">/user-profile/preferences/stay</span>
+                        <div class="endpoint-description">Update only stay preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method put">PUT</span>
+                        <span class="endpoint-url">/user-profile/preferences/travel</span>
+                        <div class="endpoint-description">Update only travel preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method delete">DELETE</span>
+                        <span class="endpoint-url">/user-profile/preferences</span>
+                        <div class="endpoint-description">Delete user preferences</div>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <span class="endpoint-method get">GET</span>
+                        <span class="endpoint-url">/user-profile/preferences/schema</span>
+                        <div class="endpoint-description">Get schema for frontend form generation</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🧪 Demo Functions</h2>
+                <p>Test the user preferences system:</p>
+                
+                <button class="demo-button" onclick="getPreferences()">Get My Preferences</button>
+                <button class="demo-button" onclick="getSchema()">Get Schema</button>
+                <button class="demo-button" onclick="updateFoodPreferences()">Update Food Preferences</button>
+                <button class="demo-button" onclick="updateTravelPreferences()">Update Travel Preferences</button>
+                
+                <div id="status"></div>
+                <div id="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        
+        async function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        async function showResult(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<pre style="background: #f8f9fa; padding: 15px; border-radius: 6px; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>`;
+        }
+        
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        async function getPreferences() {
+            showStatus('Getting user preferences...', 'info');
+            try {
+                const result = await makeRequest(`${API_BASE}/user-profile/preferences`);
+                showStatus('Preferences retrieved successfully!', 'success');
+                showResult(result);
+            } catch (error) {
+                // Error already shown by makeRequest
+            }
+        }
+        
+        async function getSchema() {
+            showStatus('Getting preferences schema...', 'info');
+            try {
+                const result = await makeRequest(`${API_BASE}/user-profile/preferences/schema`);
+                showStatus('Schema retrieved successfully!', 'success');
+                showResult(result);
+            } catch (error) {
+                // Error already shown by makeRequest
+            }
+        }
+        
+        async function updateFoodPreferences() {
+            showStatus('Updating food preferences...', 'info');
+            try {
+                const foodPrefs = {
+                    preferred_cuisines: ['japanese', 'thai', 'italian'],
+                    food_types: ['fine_dining', 'street_food'],
+                    budget_level: 'luxury',
+                    spice_tolerance: 4,
+                    dietary_restrictions: ['vegetarian'],
+                    alcohol_preference: true
+                };
+                
+                const result = await makeRequest(`${API_BASE}/user-profile/preferences/food`, {
+                    method: 'PUT',
+                    body: JSON.stringify(foodPrefs)
+                });
+                
+                showStatus('Food preferences updated successfully!', 'success');
+                showResult(result);
+            } catch (error) {
+                // Error already shown by makeRequest
+            }
+        }
+        
+        async function updateTravelPreferences() {
+            showStatus('Updating travel preferences...', 'info');
+            try {
+                const travelPrefs = {
+                    travel_style: 'luxury',
+                    preferred_transport: ['taxi', 'plane'],
+                    activity_interests: ['sightseeing', 'wellness', 'museums'],
+                    budget_level: 'luxury',
+                    group_size: 2,
+                    duration_preference: {
+                        min_days: 3,
+                        max_days: 10,
+                        preferred_days: 5
+                    }
+                };
+                
+                const result = await makeRequest(`${API_BASE}/user-profile/preferences/travel`, {
+                    method: 'PUT',
+                    body: JSON.stringify(travelPrefs)
+                });
+                
+                showStatus('Travel preferences updated successfully!', 'success');
+                showResult(result);
+            } catch (error) {
+                // Error already shown by makeRequest
+            }
+        }
+        
+        // Show initial message
+        showStatus('Ready to test user preferences! Please authenticate first if needed.', 'info');
+    </script>
+</body>
+</html>

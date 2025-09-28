@@ -30,10 +30,12 @@ def _is_restaurant_poi(place: PointOfInterest) -> bool:
     if not place:
         return False
     
-    # Check category
-    category_lower = place.category.lower()
-    if any(keyword in category_lower for keyword in RESTAURANT_KEYWORDS):
-        return True
+    # Check types
+    if place.types:
+        for type_name in place.types:
+            type_lower = type_name.lower()
+            if any(keyword in type_lower for keyword in RESTAURANT_KEYWORDS) or any(tag in type_lower for tag in RESTAURANT_PLACE_TYPES):
+                return True
     
     # Check tags
     tags_lower = [tag.lower() for tag in place.tags]
@@ -62,24 +64,6 @@ def _is_restaurant_dict(item_dict: Dict[str, Any]) -> bool:
     
     # Check if it's explicitly a restaurant type
     return any(rest_type in tags_lower for rest_type in RESTAURANT_PLACE_TYPES)
-
-
-def get_restaurant_type(place: Union[PointOfInterest, Dict[str, Any]]) -> str:
-    """
-    Get the specific restaurant type/category.
-    
-    Args:
-        place: Either a PointOfInterest object or a dictionary
-        
-    Returns:
-        String describing the restaurant type
-    """
-    if isinstance(place, PointOfInterest):
-        return place.category
-    elif isinstance(place, dict):
-        return place.get('category', 'restaurant')
-    else:
-        return 'restaurant'
 
 
 def normalize_restaurant_name(name: str) -> str:

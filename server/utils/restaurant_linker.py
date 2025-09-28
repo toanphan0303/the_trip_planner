@@ -5,7 +5,6 @@ Restaurant linking service to connect Google Places restaurants with Yelp data
 from typing import Optional, Dict, List, Tuple
 from service_api.google_api import GoogleAPI
 from service_api.yelp_api import YelpAPI
-from service_api.fourquare_api import FoursquareAPI
 from models.point_of_interest_models import PointOfInterest, Source
 from models.yelp_model import YelpPointOfInterest
 from utils.radius import haversine_m
@@ -21,13 +20,6 @@ class RestaurantLinker:
     def __init__(self):
         self.google_api = GoogleAPI()
         self.yelp_api = YelpAPI()
-        
-        # Initialize Foursquare API only if API key is available
-        try:
-            self.foursquare_api = FoursquareAPI()
-        except ValueError:
-            print("⚠️  Foursquare API key not available, Foursquare features disabled")
-            self.foursquare_api = None
     
     def find_yelp_business_for_google_place(
         self, 
@@ -395,10 +387,11 @@ class RestaurantLinker:
         place2: YelpPointOfInterest
     ) -> float:
         """Calculate category similarity"""
-        if not place1.category or not place2.get_primary_category():
+        if not place1.types or not place2.get_primary_category():
             return 0.0
         
-        cat1 = place1.category.lower()
+        # Use the first type from place1 for comparison
+        cat1 = place1.types[0].lower()
         cat2 = place2.get_primary_category().lower()
         
         # Exact match
@@ -575,54 +568,7 @@ class RestaurantLinker:
             print(f"Error linking Google Place to Foursquare: {e}")
             return None
 
-    def enhance_google_place_with_foursquare(
-        self,
-        google_place: PointOfInterest,
-        search_radius_m: int = 500,
-        name_similarity_threshold: float = 0.6
-    ) -> PointOfInterest:
-        """
-        Try to find a matching Foursquare venue and attach its data to the Google POI.
-        Returns the updated Google POI (original if no match).
-        """
-        fsq_match = self.find_foursquare_venue_for_google_place(
-            google_place,
-            search_radius_m=search_radius_m,
-            name_similarity_threshold=name_similarity_threshold,
-        )
-        if not fsq_match:
-            return google_place
-        
-        # Merge: keep Google as primary, attach Foursquare details and enrich missing fields
-        poi_data = google_place.model_dump()
-        
-        # Attach raw linked data
-        if 'linked_foursquare' not in poi_data['raw_data']:
-            poi_data['raw_data']['linked_foursquare'] = fsq_match.raw_data
-        
-        # Attach structured foursquare_data
-        poi_data['foursquare_data'] = fsq_match.foursquare_data or fsq_match.raw_data
-        
-        # Fill missing fields from Foursquare
-        if not poi_data.get('website') and fsq_match.get_foursquare_website():
-            poi_data['website'] = fsq_match.get_foursquare_website()
-        if not poi_data.get('image_url') and fsq_match.get_foursquare_photo_url():
-            poi_data['image_url'] = fsq_match.get_foursquare_photo_url()
-        if poi_data.get('is_open') is None and fsq_match.is_foursquare_venue_open() is not None:
-            poi_data['is_open'] = fsq_match.is_foursquare_venue_open()
-        if not poi_data.get('price_level') and fsq_match.get_foursquare_price_level():
-            poi_data['price_level'] = fsq_match.get_foursquare_price_level()
-        
-        # Merge tags/categories
-        poi_data['tags'] = list(set(poi_data.get('tags', []) + fsq_match.get_foursquare_categories()))
-        
-        # Mark enhancement source
-        enhanced_by = poi_data.get('enhanced_by', [])
-        if Source.foursquare not in enhanced_by:
-            enhanced_by.append(Source.foursquare)
-        poi_data['enhanced_by'] = enhanced_by
-        
-        return PointOfInterest(**poi_data)
+    
 
 
 # Convenience functions
@@ -648,22 +594,3 @@ def link_restaurants_batch(
         google_places, search_radius_m, name_similarity_threshold
     )
 
-def link_google_place_to_foursquare(
-    google_place: PointOfInterest,
-    search_radius_m: int = 100,
-    name_similarity_threshold: float = 0.7
-) -> Optional[PointOfInterest]:
-    """Find a matching Foursquare venue for a Google Place (returns Foursquare POI or None)."""
-    return _restaurant_linker.find_foursquare_venue_for_google_place(
-        google_place, search_radius_m, name_similarity_threshold
-    )
-
-def enhance_google_place_with_foursquare(
-    google_place: PointOfInterest,
-    search_radius_m: int = 100,
-    name_similarity_threshold: float = 0.7
-) -> PointOfInterest:
-    """Attach Foursquare data onto the given Google POI if a match is found."""
-    return _restaurant_linker.enhance_google_place_with_foursquare(
-        google_place, search_radius_m, name_similarity_threshold
-    )

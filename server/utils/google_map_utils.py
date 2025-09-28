@@ -6,55 +6,41 @@ import asyncio
 from typing import Dict, List
 from .radius import calculate_smart_radius, pick_bounds, base_radius_from_bounds, _is_major_city
 from service_api.google_api import google_places_nearby_search_async
+from models.google_map_models import GooglePlacesResponse, GooglePlace
 
 
-def _process_and_deduplicate_places(search_results: List[Dict], all_places: Dict) -> List[Dict]:
+def _process_and_deduplicate_places(search_results: List[GooglePlacesResponse], all_places: Dict) -> List[GooglePlace]:
     """
     Process search results and deduplicate places by ID.
     
     Args:
-        search_results: List of search results from async API calls
+        search_results: List of GooglePlacesResponse objects from async API calls
         all_places: Dictionary to track unique places by ID (modified in place)
         
     Returns:
-        List of processed results with deduplicated places
+        List of deduplicated GooglePlace objects
     """
-    places_results = []
+    deduplicated_places = []
     
     for result in search_results:
-        place_type = result["type"]
-        places = result["places"]
-        error = result["error"]
+        places = result.places
         
-        if error:
-            places_results.append({
-                "type": place_type,
-                "error": error,
-                "places": []
-            })
-        else:
-            # Process places and deduplicate by ID
-            type_places = []
-            for place in places:
-                place_id = place.get("id")
-                if place_id and place_id not in all_places:
-                    # First time seeing this place - add it
-                    all_places[place_id] = place
-                    type_places.append(place)
-                elif place_id in all_places:
-                    # Place already exists - merge types if needed
-                    existing_place = all_places[place_id]
-                    existing_types = set(existing_place.get("types", []))
-                    new_types = set(place.get("types", []))
-                    # Merge types and update the existing place
-                    existing_place["types"] = list(existing_types.union(new_types))
-            
-            places_results.append({
-                "type": place_type,
-                "places": type_places
-            })
+        # Process places and deduplicate by ID
+        for place in places:
+            place_id = place.id
+            if place_id and place_id not in all_places:
+                # First time seeing this place - add it
+                all_places[place_id] = place
+                deduplicated_places.append(place)
+            elif place_id in all_places:
+                # Place already exists - merge types if needed
+                existing_place = all_places[place_id]
+                existing_types = set(existing_place.types)
+                new_types = set(place.types)
+                # Merge types and update the existing place
+                existing_place.types = list(existing_types.union(new_types))
     
-    return places_results
+    return deduplicated_places
 
 
 def search_nearby_places_from_geocode(
@@ -65,13 +51,13 @@ def search_nearby_places_from_geocode(
     types: List[str] | None = None,
     destination_name: str = None,
     max_results_per_type: int = 5,
-) -> Dict:
+) -> List[GooglePlace]:
     """
     Search for nearby places around a geocoded location using Google Places API.
     
     Dynamically calculates search radius based on trip duration, transportation mode,
     and travel pace. For city-scale locations, performs nearby searches for multiple
-    place types. For country-scale locations, returns a text search query.
+    place types. For country-scale locations, returns empty list.
     
     Args:
         geocode_result: Geocoding result from Google API
@@ -83,13 +69,7 @@ def search_nearby_places_from_geocode(
         max_results_per_type: Maximum number of results per place type
         
     Returns:
-      {
-        'center': (lat, lng),
-        'radius_m': int | None,            # None means use Text Search
-        'places_results': [ ... ],         # actual Google Places results (if radius_m not None)
-        'textsearch_query': str | None,    # if country-scale
-        'debug': {...}                     # R0/ns/ew/bounds etc.
-      }
+        List of GooglePlace objects found in the area
     """
     g = geocode_result["geometry"]
     center = (g["location"]["lat"], g["location"]["lng"])
@@ -106,14 +86,8 @@ def search_nearby_places_from_geocode(
         R0_m, ns_m, ew_m, too_big = 10_000, 0.0, 0.0, False
 
     if too_big:
-        query = f"top tourist attractions in {geocode_result['formatted_address']}"
-        return {
-            "center": center,
-            "radius_m": None,
-            "places_results": [],
-            "textsearch_query": query,
-            "debug": {"ns_m": ns_m, "ew_m": ew_m, "R0_m": R0_m, "scale": "country/region"},
-        }
+        # For country-scale locations, return empty list
+        return []
 
     # Smart radius calculation with destination awareness and geocode data
     radius_m = calculate_smart_radius(R0_m, days, mode, pace, destination_name, geocode_result)
@@ -129,10 +103,9 @@ def search_nearby_places_from_geocode(
     print(f"Searching for places in {location_str} with radius {radius_m} and types {types}")
     
     # Call Google Places API for each type in parallel using async
-    places_results = []
     all_places = {}  # Dictionary to store unique places by ID
     
-    async def search_place_type(place_type: str) -> Dict:
+    async def search_place_type(place_type: str) -> GooglePlacesResponse:
         """Search for a specific place type asynchronously"""
         try:
             response = await google_places_nearby_search_async(
@@ -141,17 +114,10 @@ def search_nearby_places_from_geocode(
                 place_types=[place_type],
                 max_results=max_results_per_type
             )
-            return {
-                "type": place_type,
-                "places": response.places,
-                "error": None
-            }
-        except Exception as e:
-            return {
-                "type": place_type,
-                "places": [],
-                "error": str(e)
-            }
+            return response
+        except Exception:
+            # Return empty GooglePlacesResponse on error
+            return GooglePlacesResponse(places=[], next_page_token=None)
     
     # Run all searches in parallel
     async def run_parallel_searches():
@@ -164,22 +130,7 @@ def search_nearby_places_from_geocode(
     # Process results and deduplicate
     places_results = _process_and_deduplicate_places(search_results, all_places)
 
-    # Calculate deduplication statistics
-    unique_places_count = len(all_places)
-
-    return {
-        "center": center,
-        "radius_m": radius_m,
-        "places_results": places_results,
-        "textsearch_query": None,
-        "debug": {
-            "ns_m": int(ns_m), 
-            "ew_m": int(ew_m), 
-            "R0_m": int(R0_m), 
-            "scale": "city/neighborhood",
-            "unique_places": unique_places_count,
-        },
-    }
+    return places_results
 
 
 async def search_nearby_places_from_geocode_async(
@@ -190,7 +141,7 @@ async def search_nearby_places_from_geocode_async(
     types: List[str] | None = None,
     destination_name: str = None,
     max_results_per_type: int = 5,
-) -> Dict:
+) -> List[GooglePlace]:
     """
     Async version of search_nearby_places_from_geocode for better performance.
     
@@ -208,7 +159,7 @@ async def search_nearby_places_from_geocode_async(
         max_results_per_type: Maximum number of results per place type
         
     Returns:
-        Same format as search_nearby_places_from_geocode
+        List of GooglePlace objects found in the area
     """
     g = geocode_result["geometry"]
     center = (g["location"]["lat"], g["location"]["lng"])
@@ -225,14 +176,8 @@ async def search_nearby_places_from_geocode_async(
         R0_m, ns_m, ew_m, too_big = 10_000, 0.0, 0.0, False
 
     if too_big:
-        query = f"top tourist attractions in {geocode_result['formatted_address']}"
-        return {
-            "center": center,
-            "radius_m": None,
-            "places_results": [],
-            "textsearch_query": query,
-            "debug": {"ns_m": ns_m, "ew_m": ew_m, "R0_m": R0_m, "scale": "country/region"},
-        }
+        # For country-scale locations, return empty list
+        return []
 
     # Smart radius calculation with destination awareness and geocode data
     radius_m = calculate_smart_radius(R0_m, days, mode, pace, destination_name, geocode_result)
@@ -251,7 +196,7 @@ async def search_nearby_places_from_geocode_async(
     places_results = []
     all_places = {}  # Dictionary to store unique places by ID
     
-    async def search_place_type(place_type: str) -> Dict:
+    async def search_place_type(place_type: str) -> GooglePlacesResponse:
         """Search for a specific place type asynchronously"""
         try:
             response = await google_places_nearby_search_async(
@@ -260,17 +205,10 @@ async def search_nearby_places_from_geocode_async(
                 place_types=[place_type],
                 max_results=max_results_per_type
             )
-            return {
-                "type": place_type,
-                "places": response.places,
-                "error": None
-            }
-        except Exception as e:
-            return {
-                "type": place_type,
-                "places": [],
-                "error": str(e)
-            }
+            return response
+        except Exception:
+            # Return empty GooglePlacesResponse on error
+            return GooglePlacesResponse(places=[], next_page_token=None)
     
     # Run all searches in parallel
     search_results = await asyncio.gather(*[search_place_type(place_type) for place_type in types])
@@ -278,19 +216,4 @@ async def search_nearby_places_from_geocode_async(
     # Process results and deduplicate
     places_results = _process_and_deduplicate_places(search_results, all_places)
 
-    # Calculate deduplication statistics
-    unique_places_count = len(all_places)
-
-    return {
-        "center": center,
-        "radius_m": radius_m,
-        "places_results": places_results,
-        "textsearch_query": None,
-        "debug": {
-            "ns_m": int(ns_m), 
-            "ew_m": int(ew_m), 
-            "R0_m": int(R0_m), 
-            "scale": "city/neighborhood",
-            "unique_places": unique_places_count,
-        },
-    }
+    return places_results

@@ -38,6 +38,10 @@ def mongo_cached(cache_type: str):
             cached_result = cache.get(cache_type, *cache_key_args, **cache_key_kwargs)
             if cached_result is not None:
                 print(f"🚀 MongoDB CACHE HIT for {func.__name__}: {cache_type}")
+                # Deserialize GooglePlacesResponse if needed
+                if cache_type == 'google_places_search' and isinstance(cached_result, dict):
+                    from models.google_map_models import GooglePlacesResponse
+                    return GooglePlacesResponse.from_dict(cached_result)
                 return cached_result
             
             print(f"💾 MongoDB CACHE MISS for {func.__name__}: {cache_type}")
@@ -49,7 +53,9 @@ def mongo_cached(cache_type: str):
                 # Cache successful results
                 if result is not None:
                     # Convert result to dict if it's a Pydantic model
-                    if hasattr(result, 'dict'):
+                    if hasattr(result, 'to_dict'):
+                        cache_data = result.to_dict()
+                    elif hasattr(result, 'dict'):
                         cache_data = result.dict()
                     elif hasattr(result, '__dict__'):
                         cache_data = result.__dict__
@@ -95,6 +101,10 @@ def mongo_cached_async(cache_type: str):
             cached_result = cache.get(cache_type, *cache_key_args, **cache_key_kwargs)
             if cached_result is not None:
                 print(f"🚀 MongoDB CACHE HIT for {func.__name__}: {cache_type}")
+                # Deserialize GooglePlacesResponse if needed
+                if cache_type == 'google_places_search' and isinstance(cached_result, dict):
+                    from models.google_map_models import GooglePlacesResponse
+                    return GooglePlacesResponse.from_dict(cached_result)
                 return cached_result
             
             print(f"💾 MongoDB CACHE MISS for {func.__name__}: {cache_type}")
@@ -106,7 +116,9 @@ def mongo_cached_async(cache_type: str):
                 # Cache successful results
                 if result is not None:
                     # Convert result to dict if it's a Pydantic model
-                    if hasattr(result, 'dict'):
+                    if hasattr(result, 'to_dict'):
+                        cache_data = result.to_dict()
+                    elif hasattr(result, 'dict'):
                         cache_data = result.dict()
                     elif hasattr(result, '__dict__'):
                         cache_data = result.__dict__

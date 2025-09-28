@@ -1,0 +1,48 @@
+{
+  "description": "Index file for categorized mock user profiles",
+  "version": "2.0.0",
+  "total_users": 100,
+  "categories": {
+    "family_travel": {
+      "file": "family_travel_profiles.json",
+      "count": 36,
+      "description": "Users with family-friendly travel preferences, including those with children or large group bookings"
+    },
+    "couple_travel": {
+      "file": "couple_travel_profiles.json", 
+      "count": 34,
+      "description": "Users with romantic travel preferences, luxury preferences, or couple-sized bookings"
+    },
+    "solo_travel": {
+      "file": "solo_travel_profiles.json",
+      "count": 30, 
+      "description": "Users with adventure preferences, solo travel indicators, or small group preferences"
+    }
+  },
+  "usage": {
+    "load_all": "Load all profiles from the original mock_user_profiles.json",
+    "load_by_category": "Load specific travel type from the corresponding JSON file",
+    "load_family": "Load family_travel_profiles.json for family travel users",
+    "load_couple": "Load couple_travel_profiles.json for couple travel users", 
+    "load_solo": "Load solo_travel_profiles.json for solo travel users"
+  },
+  "categorization_criteria": {
+    "family_travel": [
+      "must_include_keywords contains 'family_friendly'",
+      "stay.child_ages is not empty",
+      "stay.adult_count > 2"
+    ],
+    "couple_travel": [
+      "must_include_keywords contains 'romantic'",
+      "must_include_keywords contains 'luxury'", 
+      "stay.adult_count == 2"
+    ],
+    "solo_travel": [
+      "travel.adventure_score > 0.7",
+      "travel.group_size_preference < 0.3",
+      "must_include_keywords contains 'adventure'"
+    ]
+  },
+  "created_at": "2025-01-27",
+  "original_file": "mock_user_profiles.json"
+}
