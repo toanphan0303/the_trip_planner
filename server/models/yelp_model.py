@@ -184,3 +184,41 @@ class YelpPointOfInterest(BaseModel):
             return False
         return any(hour.is_open_now for hour in self.hours)
     
+    def get_available_fields(self) -> Dict[str, Any]:
+        """Get all available fields with non-empty values"""
+        fields = {}
+        
+        # Core fields
+        if self.id:
+            fields['id'] = self.id
+        if self.alias:
+            fields['alias'] = self.alias
+        if self.name:
+            fields['name'] = self.name
+        if self.is_claimed:
+            fields['is_claimed'] = self.is_claimed
+        if self.is_closed:
+            fields['is_closed'] = self.is_closed
+        if self.url:
+            fields['url'] = self.url
+        if self.phone:
+            fields['phone'] = self.phone
+        if self.display_phone:
+            fields['display_phone'] = self.display_phone
+        if self.review_count > 0:
+            fields['review_count'] = self.review_count
+        if self.categories:
+            fields['categories'] = [cat.dict() for cat in self.categories]
+        if self.rating is not None:
+            fields['rating'] = self.rating
+        if self.coordinates and (self.coordinates.latitude is not None or self.coordinates.longitude is not None):
+            fields['coordinates'] = self.coordinates.dict()
+        if self.location and any(getattr(self.location, attr) for attr in ['address1', 'address2', 'address3', 'city', 'zip_code', 'country', 'state']):
+            fields['location'] = self.location.dict()
+        if self.photos:
+            fields['photos'] = self.photos
+        if self.hours:
+            fields['hours'] = [hour.dict() for hour in self.hours]
+        
+        return fields
+    

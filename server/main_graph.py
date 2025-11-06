@@ -8,16 +8,16 @@ from dotenv import load_dotenv
 
 from langgraph.graph import StateGraph, END
 from graph_node.base_node import BaseNode
-from models.ai_models import create_vertex_ai_model
+from models.ai_models import create_vertex_ai_model, GeminiAI
 from state import MainState
 from enum import Enum
 from langgraph.prebuilt import ToolNode
-from tools.main_graph_tools import plan_trip_for_destinations
 from langchain_core.runnables import RunnableConfig
 from typing import Optional
 from langchain_core.messages.utils import trim_messages
 from constant import MESSAGE_SIZE_LIMIT
 from prompt.graph_prompt import MAIN_GRAPH_SYSTEM_PROMPT
+from tools.main_graph_tools import plan_trip_for_destinations
 
 # Load environment variables
 load_dotenv()
@@ -35,7 +35,6 @@ if os.getenv("ENABLE_REMOTE_DEBUG", "false").lower() == "true":
     except Exception as e:
         print(f"Failed to setup remote debugging: {e}")
 
-
 # Function declarations for Gemini
 tools = [plan_trip_for_destinations]
 
@@ -49,7 +48,7 @@ class MainAssistantNode(BaseNode):
     """
     def __init__(self):
         super().__init__(name="main_assistant", description="Assistant node that processes user input and generates a response")
-        self.ai_model = create_vertex_ai_model("gemini-flash")
+        self.ai_model = create_vertex_ai_model(GeminiAI.GEMINI_FLASH)
     
     def execute(self, state: MainState, config: Optional[RunnableConfig] = None) -> MainState:
         """

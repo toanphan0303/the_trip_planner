@@ -8,13 +8,7 @@ from .models import (
     FoodPreference,
     StayPreference,
     TravelPreference,
-    FoodType,
-    CuisineType,
-    BudgetLevel,
-    StayType,
-    TravelStyle,
-    TransportMode,
-    ActivityType
+    TravelStyle
 )
 
 __all__ = [
@@ -22,11 +16,5 @@ __all__ = [
     "FoodPreference", 
     "StayPreference",
     "TravelPreference",
-    "FoodType",
-    "CuisineType",
-    "BudgetLevel",
-    "StayType",
-    "TravelStyle",
-    "TransportMode",
-    "ActivityType"
+    "TravelStyle"
 ]

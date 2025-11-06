@@ -1,0 +1,84 @@
+{
+    "info": {
+      "name": "Foursquare Places API",
+      "_postman_id": "foursquare-places-collection",
+      "description": "Postman collection for Foursquare Places API: search, details, tips, photos.",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Search Places",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{FOURSQUARE_API_KEY}}", "type": "text" },
+            { "key": "accept", "value": "application/json", "type": "text" },
+            { "key": "X-Places-Api-Version", "value": "{{FOURSQUARE_API_VERSION}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://places-api.foursquare.com/places/search?query={{QUERY}}&ll={{LAT}},{{LON}}&radius={{RADIUS}}&limit={{LIMIT}}",
+            "protocol": "https",
+            "host": ["places-api", "foursquare", "com"],
+            "path": ["places", "search"],
+            "query": [
+              { "key": "query", "value": "{{QUERY}}" },
+              { "key": "ll", "value": "{{LAT}},{{LON}}" },
+              { "key": "radius", "value": "{{RADIUS}}" },
+              { "key": "limit", "value": "{{LIMIT}}" }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Get Place Details",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{FOURSQUARE_API_KEY}}", "type": "text" },
+            { "key": "accept", "value": "application/json", "type": "text" },
+            { "key": "X-Places-Api-Version", "value": "{{FOURSQUARE_API_VERSION}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://places-api.foursquare.com/places/{{FSQ_PLACE_ID}}",
+            "protocol": "https",
+            "host": ["places-api", "foursquare", "com"],
+            "path": ["places", "{{FSQ_PLACE_ID}}"]
+          }
+        }
+      },
+      {
+        "name": "Get Place Tips",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{FOURSQUARE_API_KEY}}", "type": "text" },
+            { "key": "accept", "value": "application/json", "type": "text" },
+            { "key": "X-Places-Api-Version", "value": "{{FOURSQUARE_API_VERSION}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://places-api.foursquare.com/places/{{FSQ_PLACE_ID}}/tips",
+            "protocol": "https",
+            "host": ["places-api", "foursquare", "com"],
+            "path": ["places", "{{FSQ_PLACE_ID}}", "tips"]
+          }
+        }
+      },
+      {
+        "name": "Get Place Photos",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{FOURSQUARE_API_KEY}}", "type": "text" },
+            { "key": "accept", "value": "application/json", "type": "text" },
+            { "key": "X-Places-Api-Version", "value": "{{FOURSQUARE_API_VERSION}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://places-api.foursquare.com/places/{{FSQ_PLACE_ID}}/photos",
+            "protocol": "https",
+            "host": ["places-api", "foursquare", "com"],
+            "path": ["places", "{{FSQ_PLACE_ID}}", "photos"]
+          }
+        }
+      }
+    ]
+  }

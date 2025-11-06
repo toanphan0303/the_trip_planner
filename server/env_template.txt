@@ -26,9 +26,15 @@ LANGCHAIN_PROJECT=trip-planner
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 
-# MongoDB Configuration (Optional - for persistent caching)
+# MongoDB Configuration (Permanent data: cache, user profiles)
 # Docker container connection string (used by start.py)
 MONGODB_URI=mongodb://admin:trip_planner_pass@localhost:27017/
+
+# Redis Configuration (Ephemeral data: overlays, sessions)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_CHECKPOINT_DB=0
+REDIS_PASSWORD=
 
 # Facebook Authentication Configuration (Required for user authentication)
 # Get your App ID and Secret from: https://developers.facebook.com/apps/

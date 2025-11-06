@@ -117,5 +117,17 @@ class UserProfileDatabase:
             self.client.close()
 
 
-# Global database instance
-user_profile_db = UserProfileDatabase()
+# Global database instance (lazy-initialized)
+_user_profile_db_instance = None
+
+
+def get_user_profile_db() -> UserProfileDatabase:
+    """Get or create the global UserProfileDatabase instance"""
+    global _user_profile_db_instance
+    if _user_profile_db_instance is None:
+        _user_profile_db_instance = UserProfileDatabase()
+    return _user_profile_db_instance
+
+
+# Backward compatibility - will initialize on first access
+user_profile_db = None  # Will be set when get_user_profile_db() is called

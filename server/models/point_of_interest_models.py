@@ -2,15 +2,18 @@
 Point of Interest data models for places and events
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
 from enum import Enum
+from user_profile.models import TravelStyle
 
 from .yelp_model import YelpPointOfInterest
 from .foursquare_model import FoursquarePlace
 from .google_map_models import GooglePlace
 from constant.restaurant_constants import RESTAURANT_KEYWORDS, RESTAURANT_PLACE_TYPES
 
+if TYPE_CHECKING:
+    from models.location_preference_model import LocationPreferenceMatch
 
 class POIType(str, Enum):
     """Point of Interest type enumeration"""
@@ -68,6 +71,8 @@ class PointOfInterest(BaseModel):
     foursquare_data: Optional[FoursquarePlace] = Field(
         None, description="Foursquare data"
     )
+    travel_style: Optional[TravelStyle] = Field(None, description="Travel style")
+    poi_evaluation: Optional[Any] = Field(None, description="POI evaluation (LocationPreferenceMatch)")
 
     def is_worth_visiting(
         self,
@@ -160,6 +165,231 @@ class PointOfInterest(BaseModel):
         """
         return self._calculate_visitability_score()
 
+    def get_travel_preference_view(self) -> str:
+        """
+        Get a concise, essential view of this POI for travel preference evaluation.
+        Only includes data that exists and is relevant for matching travel preferences.
+        
+        Returns:
+            Formatted string with essential POI information for LLM evaluation
+        """
+        view_parts = []
+        
+        # Name (always present)
+        view_parts.append(f"**{self.name}**")
+        
+        # Types/Categories
+        if self.types:
+            primary_types = [t for t in self.types if t not in ['point_of_interest', 'establishment', 'food']]
+            if primary_types:
+                view_parts.append(f"Type: {', '.join(primary_types[:3])}")
+        
+        # Rating and reviews (quality indicator)
+        rating, review_count = self._get_best_rating_data()
+        if rating and review_count:
+            view_parts.append(f"Rating: {rating:.1f}/5 ({review_count:,} reviews)")
+        elif rating:
+            view_parts.append(f"Rating: {rating:.1f}/5")
+        
+        # Editorial summary (what makes it special)
+        if self.google_data and self.google_data.editorial_summary_text:
+            summary = self.google_data.editorial_summary_text
+            # Truncate if too long
+            if len(summary) > 150:
+                summary = summary[:147] + "..."
+            view_parts.append(f"Description: {summary}")
+        
+        # Reviews (real user experiences)
+        if self.google_data and self.google_data.reviews:
+            reviews = self.google_data.reviews
+            # Get the most helpful reviews (typically the first ones from Google)
+            review_snippets = []
+            for review in reviews[:2]:  # Take top 2 reviews
+                if review.text and hasattr(review.text, 'text'):
+                    review_text = review.text.text
+                    # Truncate long reviews
+                    if len(review_text) > 100:
+                        review_text = review_text[:97] + "..."
+                    # Add rating as text (clearer for LLMs than symbols)
+                    rating_text = f"{review.rating}-star" if review.rating else "unrated"
+                    review_snippets.append(f"({rating_text}) {review_text}")
+            
+            if review_snippets:
+                reviews_text = "; ".join(review_snippets)
+                view_parts.append(f"Reviews: {reviews_text}")
+        
+        # Price level
+        if self.google_data and self.google_data.price_level:
+            price_map = {
+                'PRICE_LEVEL_FREE': 'Free',
+                'PRICE_LEVEL_INEXPENSIVE': 'Inexpensive',
+                'PRICE_LEVEL_MODERATE': 'Moderate',
+                'PRICE_LEVEL_EXPENSIVE': 'Expensive',
+                'PRICE_LEVEL_VERY_EXPENSIVE': 'Very Expensive'
+            }
+            price = price_map.get(self.google_data.price_level, self.google_data.price_level)
+            view_parts.append(f"Price: {price}")
+        
+        # Key amenities (relevant for family/group travel)
+        amenities = []
+        if self.google_data:
+            if self.google_data.good_for_children:
+                amenities.append("good for children")
+            if self.google_data.good_for_groups:
+                amenities.append("good for groups")
+            if self.google_data.outdoor_seating:
+                amenities.append("outdoor seating")
+            if self.google_data.accessibility_options:
+                amenities.append("wheelchair accessible")
+        
+        if amenities:
+            view_parts.append(f"Amenities: {', '.join(amenities)}")
+        
+        # Opening status
+        if self.google_data and self.google_data.business_status:
+            if self.google_data.business_status != 'OPERATIONAL':
+                view_parts.append(f"Status: {self.google_data.business_status}")
+        
+        return " | ".join(view_parts)
+
+    def get_restaurant_preview_view(self) -> str:
+        """
+        Get a restaurant-focused view for preference evaluation.
+        Prioritizes Yelp data over Google data as Yelp has richer restaurant information.
+        Only includes data that exists and is essential for restaurant preference matching.
+        
+        Returns:
+            Formatted string with essential restaurant information for LLM evaluation
+        """
+        view_parts = []
+        
+        # Name (always present)
+        view_parts.append(f"**{self.name}**")
+        
+        # Determine data source priority: Yelp > Google
+        use_yelp = self.yelp_data is not None
+        
+        # Cuisine/Categories
+        if use_yelp and self.yelp_data.categories:
+            # Yelp categories are more specific for restaurants
+            cuisine_types = [cat.title for cat in self.yelp_data.categories[:3]]
+            view_parts.append(f"Cuisine: {', '.join(cuisine_types)}")
+        elif self.types:
+            # Fallback to Google types
+            cuisine_types = [t for t in self.types if t not in ['restaurant', 'food', 'establishment', 'point_of_interest']]
+            if cuisine_types:
+                view_parts.append(f"Cuisine: {', '.join(cuisine_types[:3])}")
+        
+        # Rating and reviews (prefer Yelp for restaurants)
+        if use_yelp and self.yelp_data.rating:
+            rating = float(self.yelp_data.rating) if isinstance(self.yelp_data.rating, str) else self.yelp_data.rating
+            review_count = self.yelp_data.review_count
+            view_parts.append(f"Rating: {rating:.1f}/5 ({review_count:,} Yelp reviews)")
+        else:
+            # Fallback to Google rating
+            rating, review_count = self._get_best_rating_data()
+            if rating and review_count:
+                view_parts.append(f"Rating: {rating:.1f}/5 ({review_count:,} reviews)")
+            elif rating:
+                view_parts.append(f"Rating: {rating:.1f}/5")
+        
+        # Price level (prefer Yelp's $ system for restaurants)
+        if use_yelp and self.yelp_data.price:
+            price_map = {
+                '$': 'Inexpensive',
+                '$$': 'Moderate',
+                '$$$': 'Expensive',
+                '$$$$': 'Very Expensive'
+            }
+            price = price_map.get(self.yelp_data.price, self.yelp_data.price)
+            view_parts.append(f"Price: {price}")
+        elif self.google_data and self.google_data.price_level:
+            price_map = {
+                'PRICE_LEVEL_FREE': 'Free',
+                'PRICE_LEVEL_INEXPENSIVE': 'Inexpensive',
+                'PRICE_LEVEL_MODERATE': 'Moderate',
+                'PRICE_LEVEL_EXPENSIVE': 'Expensive',
+                'PRICE_LEVEL_VERY_EXPENSIVE': 'Very Expensive'
+            }
+            price = price_map.get(self.google_data.price_level, self.google_data.price_level)
+            view_parts.append(f"Price: {price}")
+        
+        # Dining options (from Google data)
+        dining_options = []
+        if self.google_data:
+            if self.google_data.dine_in:
+                dining_options.append("dine-in")
+            if self.google_data.takeout:
+                dining_options.append("takeout")
+            if self.google_data.delivery:
+                dining_options.append("delivery")
+            if self.google_data.reservable:
+                dining_options.append("reservations")
+        
+        if dining_options:
+            view_parts.append(f"Options: {', '.join(dining_options)}")
+        
+        # Food service info (what meals they serve)
+        meal_service = []
+        if self.google_data:
+            if self.google_data.serves_breakfast:
+                meal_service.append("breakfast")
+            if self.google_data.serves_lunch:
+                meal_service.append("lunch")
+            if self.google_data.serves_dinner:
+                meal_service.append("dinner")
+            if self.google_data.serves_brunch:
+                meal_service.append("brunch")
+        
+        if meal_service:
+            view_parts.append(f"Serves: {', '.join(meal_service)}")
+        
+        # Key amenities for restaurant preference
+        amenities = []
+        if self.google_data:
+            if self.google_data.good_for_children:
+                amenities.append("kid-friendly")
+            if self.google_data.good_for_groups:
+                amenities.append("group-friendly")
+            if self.google_data.outdoor_seating:
+                amenities.append("outdoor seating")
+            if self.google_data.serves_vegetarian_food:
+                amenities.append("vegetarian options")
+        
+        if amenities:
+            view_parts.append(f"Features: {', '.join(amenities)}")
+        
+        # Reviews (use Google reviews since Yelp doesn't provide review text in Business Search API)
+        # Note: Yelp Reviews API would need separate calls - using Google reviews for now
+        if self.google_data and self.google_data.reviews:
+            reviews = self.google_data.reviews
+            review_snippets = []
+            for review in reviews[:2]:  # Take top 2 reviews
+                if review.text and hasattr(review.text, 'text'):
+                    review_text = review.text.text
+                    # Truncate long reviews
+                    if len(review_text) > 100:
+                        review_text = review_text[:97] + "..."
+                    # Add rating as text
+                    rating_text = f"{review.rating}-star" if review.rating else "unrated"
+                    review_snippets.append(f"({rating_text}) {review_text}")
+            
+            if review_snippets:
+                reviews_text = "; ".join(review_snippets)
+                # Indicate source if we're using Google reviews but have Yelp data
+                source_label = "Google reviews" if use_yelp else "Reviews"
+                view_parts.append(f"{source_label}: {reviews_text}")
+        
+        # Business status (only if problematic)
+        if self.google_data and self.google_data.business_status:
+            if self.google_data.business_status != 'OPERATIONAL':
+                view_parts.append(f"Status: {self.google_data.business_status}")
+        
+        if use_yelp and self.yelp_data.is_closed:
+            view_parts.append("Status: CLOSED")
+        
+        return " | ".join(view_parts)
+
     def get_enhancement_summary(self) -> str:
         """
         Get a human-readable summary of data enhancements.
@@ -212,6 +442,42 @@ class PointOfInterest(BaseModel):
                 return True
 
         return False
+
+    def get_available_fields(self) -> Dict[str, Any]:
+        """Get all available fields with non-empty values"""
+        fields = {}
+        
+        # Core fields
+        if self.name:
+            fields['name'] = self.name
+        if self.type_POI:
+            fields['type_POI'] = self.type_POI
+        if self.types:
+            fields['types'] = self.types
+        if self.address:
+            fields['address'] = self.address
+        if self.location and (self.location.latitude is not None or self.location.longitude is not None):
+            fields['location'] = self.location
+        if self.tags:
+            fields['tags'] = self.tags
+        
+        # Source-specific data
+        if self.google_data:
+            google_fields = self.google_data.get_available_fields()
+            if google_fields:
+                fields['google_data'] = google_fields
+        
+        if self.yelp_data:
+            yelp_fields = self.yelp_data.get_available_fields()
+            if yelp_fields:
+                fields['yelp_data'] = yelp_fields
+        
+        if self.foursquare_data:
+            foursquare_fields = self.foursquare_data.get_available_fields()
+            if foursquare_fields:
+                fields['foursquare_data'] = foursquare_fields
+        
+        return fields
 
 
 # Backward compatibility - keep the old function but return the new model

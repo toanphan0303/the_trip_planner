@@ -28,6 +28,10 @@ h3>=3.7.6
 httpx>=0.25.0
 requests>=2.31.0
 
+# Redis (for LangGraph state persistence)
+redis>=5.0.0
+langgraph-checkpoint-redis>=0.1.0
+
 # Caching
 pymongo>=4.6.0
 

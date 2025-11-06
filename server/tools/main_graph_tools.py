@@ -3,8 +3,13 @@ from service_api.google_api import google_places_search_text, google_geocode
 from models.args_model import PlanTripForDestinationsArgs
 from utils.google_map_utils import search_nearby_places_from_geocode
 from utils.utils import normalize_places_and_events, enhance_clusters_with_yelp_data
-from utils.cluster_locations import cluster_and_anchor_pois, calculate_smart_max_results
-from utils.foursquare_enhancer import enhance_clusters_with_foursquare_data
+from utils.cluster_locations import cluster_and_anchor_pois
+# Note: User profile evaluation temporarily disabled - mock profiles have been removed
+# from llm.location_preference_evaluation import (
+#     evaluate_family_travel_preferences_batched,
+#     evaluate_family_restaurant_preferences_batched
+# )
+# from user_profile.models import TravelPreference
 
 
 @tool(args_schema=PlanTripForDestinationsArgs)
@@ -28,83 +33,4 @@ def plan_trip_for_destinations(**kwargs) -> str:
     Returns:
         Comprehensive list of places with detailed information including names, addresses, ratings, types, locations, price levels, business status, and websites
     """
-    try:
-        duration_days = kwargs["duration_days"]
-        destination = kwargs["destination"]
-        max_results = kwargs.get(
-            "max_results", 50
-        )  # Default to 10, but allow customization
-
-        response = google_places_search_text(query=destination, max_results=max_results)
-
-        # Response is now always a GooglePlacesResponse object
-        places = response.places
-
-        # Handle multiple places using the response method
-        response.handle_multiple_places()
-
-        place = places[0]
-        address = place.formatted_address
-
-        # Get geocoding response and extract the first result
-        geocode_response = google_geocode(address)
-        if not geocode_response.get("results"):
-            return f"No geocoding results found for address: {address}"
-
-        # Use the first geocoding result
-        geocode_result = geocode_response["results"][0]
-
-        # Calculate smart max_results now that we have geocode information
-        max_results = calculate_smart_max_results(
-            days=duration_days,
-            destination_name=destination,
-            geocode_result=geocode_result,
-        )
-
-        nearby_places = search_nearby_places_from_geocode(
-            geocode_result,
-            days=duration_days,
-            mode="transit",
-            pace="standard",
-            destination_name=destination,  # Pass destination for smart radius calculation
-            max_results_per_type=max_results,  # Use smart or user-provided max_results
-        )
-        print("Number of nearby places: ", len(nearby_places))
-
-        # Convert nearby_places to PointOfInterest objects
-        pois = normalize_places_and_events(
-            places_data=nearby_places
-        )
-
-        clusters, anchors = cluster_and_anchor_pois(
-            pois=pois,  # Use the list directly
-            search_radius_km=30.0,  # Use the search radius from the API call
-            # Smart parameters will be automatically calculated based on dataset characteristics
-            # and trip duration to create one cluster per day
-            use_smart_params=True,
-            target_clusters=duration_days,  # Force one cluster per day
-            anchor_method="centroid",
-        )
-
-        # Enhance restaurants with Yelp data AFTER clustering and filtering
-        # This reduces API calls by only enhancing restaurants that made it through clustering
-        enhanced_clusters = enhance_clusters_with_yelp_data(
-            clusters,
-            search_radius_m=500,
-            name_similarity_threshold=0.6,
-            enable_linking=True,
-        )
-
-        # Enhance restaurants with Foursquare data AFTER Yelp enhancement
-        # This provides additional venue information and social data
-        enhanced_clusters = enhance_clusters_with_foursquare_data(
-            enhanced_clusters,
-            search_radius_m=100,
-            name_similarity_threshold=0.6,
-            enable_linking=True,
-        )
-
-        return enhanced_clusters
-
-    except Exception as e:
-        return f"Error searching for places: {str(e)}"
+    return "This tool is not implemented yet."

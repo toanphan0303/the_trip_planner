@@ -9,16 +9,198 @@ import sys
 import subprocess
 import time
 from pathlib import Path
+import json
 
 def print_banner():
     """Print startup banner"""
     print("🌍" + "="*60 + "🌍")
-    print("    TRIP PLANNER - LANGGRAPH STUDIO TESTING")
-    print("    LangGraph Studio (In-Memory Mode)")
+    print("    TRIP PLANNER - LANGGRAPH STUDIO")
+    print("    LangGraph Studio + MongoDB Cache + Auto State Persistence")
     print("    (Process will be stopped when you exit)")
     print("="*64)
-    print("🚀 Starting LangGraph Studio...")
+    print("🚀 Starting services...")
     print()
+
+def check_docker():
+    """Check if Docker is installed and running"""
+    print("🐳 Checking Docker...")
+    
+    try:
+        # Check if Docker is installed
+        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("❌ Docker is not installed or not in PATH")
+            print("   Please install Docker Desktop from https://www.docker.com/products/docker-desktop")
+            return False
+        
+        # Check if Docker daemon is running
+        result = subprocess.run(["docker", "info"], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("❌ Docker daemon is not running")
+            print("   Please start Docker Desktop")
+            return False
+        
+        print("✅ Docker is installed and running")
+        return True
+        
+    except FileNotFoundError:
+        print("❌ Docker command not found")
+        print("   Please install Docker Desktop from https://www.docker.com/products/docker-desktop")
+        return False
+
+def check_docker_compose():
+    """Check if docker-compose.yml exists"""
+    if not os.path.exists("docker-compose.yml"):
+        print("❌ docker-compose.yml not found in project root")
+        print("   Please ensure docker-compose.yml exists")
+        return False
+    
+    print("✅ docker-compose.yml found")
+    return True
+
+def start_mongodb():
+    """Start MongoDB container using Docker Compose"""
+    print("🍃 Starting MongoDB container...")
+    
+    try:
+        # Check if container is already running
+        result = subprocess.run([
+            "docker", "ps", "--filter", "name=trip_planner_mongodb", "--format", "{{.Names}}"
+        ], capture_output=True, text=True)
+        
+        if "trip_planner_mongodb" in result.stdout:
+            print("✅ MongoDB container is already running")
+            return True
+        
+        # Start MongoDB container
+        result = subprocess.run([
+            "docker-compose", "up", "-d", "mongodb"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"❌ Failed to start MongoDB container: {result.stderr}")
+            return False
+        
+        # Wait for MongoDB to be ready
+        print("⏳ Waiting for MongoDB to be ready...")
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            result = subprocess.run([
+                "docker-compose", "exec", "-T", "mongodb", 
+                "mongosh", "--eval", "db.runCommand('ping')", "--quiet"
+            ], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print("✅ MongoDB is ready!")
+                return True
+            
+            time.sleep(2)
+        
+        print("❌ MongoDB failed to start within 60 seconds")
+        return False
+        
+    except Exception as e:
+        print(f"❌ Error starting MongoDB: {e}")
+        return False
+
+def start_redis():
+    """Start Redis container using Docker Compose"""
+    print("🔴 Starting Redis container...")
+    
+    try:
+        # Check if container is already running
+        result = subprocess.run([
+            "docker", "ps", "--filter", "name=trip_planner_redis", "--format", "{{.Names}}"
+        ], capture_output=True, text=True)
+        
+        if "trip_planner_redis" in result.stdout:
+            print("✅ Redis container is already running")
+            return True
+        
+        # Start Redis container
+        result = subprocess.run([
+            "docker-compose", "up", "-d", "redis"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"❌ Failed to start Redis container: {result.stderr}")
+            return False
+        
+        # Wait for Redis to be ready
+        print("⏳ Waiting for Redis to be ready...")
+        max_attempts = 15
+        for attempt in range(max_attempts):
+            result = subprocess.run([
+                "docker-compose", "exec", "-T", "redis", 
+                "redis-cli", "ping"
+            ], capture_output=True, text=True)
+            
+            if result.returncode == 0 and "PONG" in result.stdout:
+                print("✅ Redis is ready!")
+                return True
+            
+            time.sleep(2)
+        
+        print("❌ Redis failed to start within 30 seconds")
+        return False
+        
+    except Exception as e:
+        print(f"❌ Error starting Redis: {e}")
+        return False
+
+def stop_mongodb():
+    """Stop MongoDB container"""
+    print("🛑 Stopping MongoDB container...")
+    
+    try:
+        result = subprocess.run([
+            "docker-compose", "stop", "mongodb"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"❌ Failed to stop MongoDB container: {result.stderr}")
+            return False
+        
+        print("✅ MongoDB container stopped")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error stopping MongoDB: {e}")
+        return False
+
+def stop_redis():
+    """Stop Redis container"""
+    print("🛑 Stopping Redis container...")
+    
+    try:
+        result = subprocess.run([
+            "docker-compose", "stop", "redis"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"❌ Failed to stop Redis container: {result.stderr}")
+            return False
+        
+        print("✅ Redis container stopped")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error stopping Redis: {e}")
+        return False
+
+def get_mongodb_status():
+    """Get MongoDB container status"""
+    try:
+        result = subprocess.run([
+            "docker-compose", "ps", "mongodb"
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return "Unknown"
+        
+    except Exception:
+        return "Unknown"
 
 def check_dependencies():
     """Check if required dependencies are installed"""
@@ -207,6 +389,9 @@ def start_langgraph_studio(venv_python, enable_debug=False):
         env["LANGCHAIN_PROJECT"] = "trip-planner"
         env["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
         
+        # Set MongoDB connection string
+        env["MONGODB_URI"] = "mongodb://admin:trip_planner_pass@localhost:27017/"
+        
         # Enable debugging if requested
         if enable_debug:
             env["ENABLE_REMOTE_DEBUG"] = "true"
@@ -275,13 +460,18 @@ def print_summary(studio_process):
     """Print summary of running services"""
     print()
     print("🎉" + "="*60 + "🎉")
-    print("    LANGGRAPH STUDIO STARTED SUCCESSFULLY!")
+    print("    ALL SERVICES STARTED SUCCESSFULLY!")
     print("="*64)
     print()
     print("📍 Access Points:")
     print("   🎨 LangGraph Studio:   http://localhost:2024")
     print("   🎨 Studio UI:          https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024")
+    print("   🍃 MongoDB:            mongodb://admin:trip_planner_pass@localhost:27017/")
     print("   📋 Logs:               Displayed in real-time below")
+    print()
+    print("📊 Available Graphs:")
+    print("   • trip_planner:    Main trip planning graph")
+    print("   • travel_planner:  Travel planner with preference detection (auto-persisted)")
     
     print()
     print("🐛 Debugging:")
@@ -295,16 +485,30 @@ def print_summary(studio_process):
     print("   📁 Location:          ./venv/")
     print("   🔧 Activate:          source venv/bin/activate")
     print("   📦 Packages:          Isolated in virtual environment")
+    
+    print()
+    print("🍃 MongoDB Cache:")
+    print("   🐳 Container:         trip_planner_mongodb")
+    print("   💾 Data Volume:       mongodb_data (persistent)")
+    print("   🔗 Connection:        mongodb://admin:trip_planner_pass@localhost:27017/")
+    print("   📊 Database:          trip_planner_cache")
+    print()
+    print("💾 State Persistence:")
+    print("   🎨 LangGraph Studio provides automatic state persistence")
+    print("   📊 All graph state is auto-saved between conversation turns")
+    
     print()
     print("🛠️  Available Workflows:")
     print("   • LangGraph Multi-step Workflow (Trip Planning)")
+    print("   • MongoDB-cached API calls (Google, Yelp, Foursquare)")
     print()
     print("📊 Data Collection:")
     print("   • LangSmith integration for monitoring")
     print("   • Workflow execution traces")
     print("   • Performance metrics")
+    print("   • Persistent API response caching")
     print()
-    print("🛑 To stop LangGraph Studio: Press Ctrl+C")
+    print("🛑 To stop all services: Press Ctrl+C")
     print("="*64)
 
 def main():
@@ -321,6 +525,26 @@ def main():
     try:
         # Check dependencies
         check_dependencies()
+        
+        # Check Docker and Docker Compose
+        if not check_docker():
+            print("❌ Cannot continue without Docker")
+            sys.exit(1)
+        
+        if not check_docker_compose():
+            print("❌ Cannot continue without docker-compose.yml")
+            sys.exit(1)
+        
+        # Start MongoDB
+        if not start_mongodb():
+            print("❌ Cannot continue without MongoDB")
+            sys.exit(1)
+        
+        # Redis is optional - LangGraph Studio provides automatic persistence
+        # Uncomment below if you need Redis for other purposes
+        # if not start_redis():
+        #     print("⚠️  Redis failed to start (optional)")
+        print("ℹ️  Redis skipped - LangGraph Studio provides automatic persistence")
         
         # Setup virtual environment
         try:
@@ -352,8 +576,6 @@ def main():
             print("❌ Cannot continue without LangGraph Studio")
             sys.exit(1)
         
-
-        
         # Print summary
         print_summary(studio_process)
         
@@ -365,6 +587,9 @@ def main():
             print("✅ LangGraph Studio process completed")
         except KeyboardInterrupt:
             print("\n🛑 Shutting down services...")
+            
+            # Stop MongoDB container
+            stop_mongodb()
             
             # Since LangGraph Studio is running in foreground, Ctrl+C will stop it directly
             print("🛑 LangGraph Studio process terminated by user")

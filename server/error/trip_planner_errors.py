@@ -53,6 +53,37 @@ class UserClarificationError(BaseTripPlannerError):
         error_dict['clarification_questions'] = self.clarification_questions
         return error_dict
 
+class ToolExecutionError(BaseTripPlannerError):
+    """
+    Error raised when a tool execution fails.
+    
+    This error is used when a tool cannot complete its task due to
+    missing preconditions, invalid state, or execution failures.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        tool_name: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Initialize tool execution error.
+        
+        Args:
+            message: Error message
+            tool_name: Name of the tool that failed
+            context: Additional context information
+        """
+        self.tool_name = tool_name
+        
+        super().__init__(
+            message=message,
+            error_code="TOOL_EXECUTION_ERROR",
+            context=context,
+            user_message=message
+        )
+
 
 class ValidationError(BaseTripPlannerError):
     """

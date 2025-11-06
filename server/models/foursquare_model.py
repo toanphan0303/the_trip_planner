@@ -113,6 +113,72 @@ class FoursquarePlace(BaseModel):
         """Get the primary category"""
         return self.categories[0] if self.categories else None
     
+    def get_available_fields(self) -> Dict[str, Any]:
+        """Get all available fields with non-empty values"""
+        fields = {}
+        
+        # Core fields
+        if self.fsq_place_id:
+            fields['fsq_place_id'] = self.fsq_place_id
+        if self.name:
+            fields['name'] = self.name
+        if self.latitude is not None:
+            fields['latitude'] = self.latitude
+        if self.longitude is not None:
+            fields['longitude'] = self.longitude
+        if self.distance is not None:
+            fields['distance'] = self.distance
+        
+        # Location information
+        if self.location and any(getattr(self.location, attr) for attr in ['address', 'locality', 'region', 'postcode', 'country', 'formatted_address']):
+            fields['location'] = self.location.dict()
+        if self.extended_location:
+            fields['extended_location'] = self.extended_location.dict()
+        
+        # Categories
+        if self.categories:
+            fields['categories'] = [cat.dict() for cat in self.categories]
+        
+        # Dates
+        if self.date_created:
+            fields['date_created'] = self.date_created
+        if self.date_refreshed:
+            fields['date_refreshed'] = self.date_refreshed
+        
+        # Links
+        if self.link:
+            fields['link'] = self.link
+        if self.placemaker_url:
+            fields['placemaker_url'] = self.placemaker_url
+        
+        # Contact information
+        if self.tel:
+            fields['tel'] = self.tel
+        if self.website:
+            fields['website'] = self.website
+        
+        # Social media
+        if self.social_media and any(getattr(self.social_media, attr) for attr in ['twitter', 'facebook', 'instagram']):
+            fields['social_media'] = self.social_media.dict()
+        
+        # Related places
+        if self.related_places and self.related_places.places:
+            fields['related_places'] = self.related_places.dict()
+        
+        # Additional fields
+        if self.rating is not None:
+            fields['rating'] = self.rating
+        if self.price is not None:
+            fields['price'] = self.price
+        if self.hours:
+            fields['hours'] = self.hours
+        if self.photos:
+            fields['photos'] = self.photos
+        if self.tips:
+            fields['tips'] = self.tips
+        
+        return fields
+    
 
 
 class FoursquareGeoBounds(BaseModel):

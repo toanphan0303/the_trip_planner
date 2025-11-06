@@ -1,0 +1,172 @@
+{
+    "info": {
+      "name": "Google Places API (New) v1 - Core",
+      "_postman_id": "places-new-collection",
+      "description": "Postman collection for Google Places API (New) v1: searchNearby (POST), searchText (POST), place details (GET), place photos (GET).",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Nearby Search",
+        "item": [
+          {
+            "name": "searchNearby - Circle (POPULARITY)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" },
+                { "key": "X-Goog-FieldMask", "value": "{{FIELDMASK_NEARBY}}" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/places:searchNearby",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "places:searchNearby"]
+              },
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"includedTypes\": {{INCLUDED_TYPES}},\n  \"excludedTypes\": {{EXCLUDED_TYPES}},\n  \"maxResultCount\": {{MAX_RESULT_COUNT}},\n  \"rankPreference\": \"{{RANK_PREFERENCE}}\",\n  \"languageCode\": \"{{LANGUAGE_CODE}}\",\n  \"regionCode\": \"{{REGION_CODE}}\",\n  \"openNow\": {{OPEN_NOW}},\n  \"locationRestriction\": {\n    \"circle\": {\n      \"center\": {\"latitude\": {{LATITUDE}}, \"longitude\": {{LONGITUDE}}},\n      \"radius\": {{RADIUS_METERS}}\n    }\n  }\n}"
+              }
+            }
+          },
+          {
+            "name": "searchNearby - Rectangle (DISTANCE)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" },
+                { "key": "X-Goog-FieldMask", "value": "{{FIELDMASK_NEARBY}}" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/places:searchNearby",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "places:searchNearby"]
+              },
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"includedTypes\": {{INCLUDED_TYPES}},\n  \"maxResultCount\": {{MAX_RESULT_COUNT}},\n  \"rankPreference\": \"DISTANCE\",\n  \"languageCode\": \"{{LANGUAGE_CODE}}\",\n  \"locationRestriction\": {\n    \"rectangle\": {\n      \"low\": {\"latitude\": {{LATITUDE}} - 0.02, \"longitude\": {{LONGITUDE}} - 0.02},\n      \"high\": {\"latitude\": {{LATITUDE}} + 0.02, \"longitude\": {{LONGITUDE}} + 0.02}\n    }\n  }\n}"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Text Search",
+        "item": [
+          {
+            "name": "searchText - Basic",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" },
+                { "key": "X-Goog-FieldMask", "value": "{{FIELDMASK_TEXT}}" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/places:searchText",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "places:searchText"]
+              },
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"textQuery\": \"{{TEXT_QUERY}}\",\n  \"openNow\": {{OPEN_NOW}},\n  \"pageSize\": {{PAGE_SIZE}},\n  \"locationBias\": {\n    \"circle\": {\n      \"center\": {\"latitude\": {{LATITUDE}}, \"longitude\": {{LONGITUDE}}},\n      \"radius\": {{RADIUS_METERS}}\n    }\n  }\n}"
+              }
+            }
+          },
+          {
+            "name": "searchText - Next Page",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" },
+                { "key": "X-Goog-FieldMask", "value": "places.id,nextPageToken" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/places:searchText",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "places:searchText"]
+              },
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"textQuery\": \"{{TEXT_QUERY}}\",\n  \"pageSize\": {{PAGE_SIZE}},\n  \"pageToken\": \"{{PAGE_TOKEN}}\"\n}"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Place Details",
+        "item": [
+          {
+            "name": "GET places/{place_id} (FieldMask)",
+            "request": {
+              "method": "GET",
+              "header": [
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" },
+                { "key": "X-Goog-FieldMask", "value": "{{FIELDMASK_DETAILS}}" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/places/{{PLACE_ID}}?languageCode={{LANGUAGE_CODE}}&regionCode={{REGION_CODE}}",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "places", "{{PLACE_ID}}"],
+                "query": [
+                  { "key": "languageCode", "value": "{{LANGUAGE_CODE}}" },
+                  { "key": "regionCode", "value": "{{REGION_CODE}}" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Place Photos",
+        "item": [
+          {
+            "name": "GET photos/{photo.name}/media",
+            "request": {
+              "method": "GET",
+              "header": [
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/{{PHOTO_MEDIA_NAME}}?maxWidthPx={{MAX_WIDTH_PX}}&maxHeightPx={{MAX_HEIGHT_PX}}",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "{{PHOTO_MEDIA_NAME}}"],
+                "query": [
+                  { "key": "maxWidthPx", "value": "{{MAX_WIDTH_PX}}" },
+                  { "key": "maxHeightPx", "value": "{{MAX_HEIGHT_PX}}" }
+                ]
+              }
+            }
+          },
+          {
+            "name": "GET places/{place_id}/photos/{photo_reference}/media",
+            "request": {
+              "method": "GET",
+              "header": [
+                { "key": "X-Goog-Api-Key", "value": "{{GOOGLE_MAPS_API_KEY}}" }
+              ],
+              "url": {
+                "raw": "https://places.googleapis.com/v1/places/{{PLACE_ID}}/photos/{{PHOTO_REFERENCE}}/media?maxWidthPx={{MAX_WIDTH_PX}}&maxHeightPx={{MAX_HEIGHT_PX}}",
+                "protocol": "https",
+                "host": ["places", "googleapis", "com"],
+                "path": ["v1", "places", "{{PLACE_ID}}", "photos", "{{PHOTO_REFERENCE}}", "media"],
+                "query": [
+                  { "key": "maxWidthPx", "value": "{{MAX_WIDTH_PX}}" },
+                  { "key": "maxHeightPx", "value": "{{MAX_HEIGHT_PX}}" }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }

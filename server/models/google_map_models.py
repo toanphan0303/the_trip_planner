@@ -1,12 +1,248 @@
 """
-Google Places API Models - Using Google's Built-in Models
-This module uses Google's built-in request/response models directly
+Google Places API Models - Matching Google's Actual API Structure
+This module uses Pydantic models that match Google's nested structure exactly
 """
 
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
+
+# ============================================================================
+# Nested Object Models (matching Google's structure)
+# ============================================================================
+
+class LocalizedText(BaseModel):
+    """Localized text with language code"""
+    text: str
+    language_code: Optional[str] = Field(None, alias="languageCode")
+    
+    model_config = {"populate_by_name": True}
+
+
+class LatLng(BaseModel):
+    """Geographic coordinates"""
+    latitude: float
+    longitude: float
+
+
+class AuthorAttribution(BaseModel):
+    """Review author information"""
+    display_name: Optional[str] = Field(None, alias="displayName")
+    uri: Optional[str] = None
+    photo_uri: Optional[str] = Field(None, alias="photoUri")
+    
+    model_config = {"populate_by_name": True}
+
+
+class Review(BaseModel):
+    """User review"""
+    name: Optional[str] = None
+    relative_publish_time_description: Optional[str] = Field(None, alias="relativePublishTimeDescription")
+    rating: Optional[int] = None
+    text: Optional[LocalizedText] = None
+    original_text: Optional[LocalizedText] = Field(None, alias="originalText")
+    author_attribution: Optional[AuthorAttribution] = Field(None, alias="authorAttribution")
+    publish_time: Optional[str] = Field(None, alias="publishTime")
+    
+    model_config = {"populate_by_name": True}
+
+
+class OpeningHoursPeriod(BaseModel):
+    """Opening hours period"""
+    open: Optional[Dict[str, Any]] = None
+    close: Optional[Dict[str, Any]] = None
+
+
+class OpeningHours(BaseModel):
+    """Opening hours information"""
+    open_now: Optional[bool] = Field(None, alias="openNow")
+    periods: Optional[List[OpeningHoursPeriod]] = None
+    weekday_descriptions: Optional[List[str]] = Field(None, alias="weekdayDescriptions")
+    
+    model_config = {"populate_by_name": True}
+
+
+class Photo(BaseModel):
+    """Photo reference"""
+    name: Optional[str] = None
+    width_px: Optional[int] = Field(None, alias="widthPx")
+    height_px: Optional[int] = Field(None, alias="heightPx")
+    author_attributions: Optional[List[AuthorAttribution]] = Field(None, alias="authorAttributions")
+    
+    model_config = {"populate_by_name": True}
+
+
+class PriceRange(BaseModel):
+    """Price range information"""
+    start_price: Optional[Dict[str, Any]] = Field(None, alias="startPrice")
+    end_price: Optional[Dict[str, Any]] = Field(None, alias="endPrice")
+    
+    model_config = {"populate_by_name": True}
+
+
+class AccessibilityOptions(BaseModel):
+    """Accessibility information"""
+    wheelchair_accessible_parking: Optional[bool] = Field(None, alias="wheelchairAccessibleParking")
+    wheelchair_accessible_entrance: Optional[bool] = Field(None, alias="wheelchairAccessibleEntrance")
+    wheelchair_accessible_restroom: Optional[bool] = Field(None, alias="wheelchairAccessibleRestroom")
+    wheelchair_accessible_seating: Optional[bool] = Field(None, alias="wheelchairAccessibleSeating")
+    
+    model_config = {"populate_by_name": True}
+
+
+# ============================================================================
+# Main GooglePlace Model (matching Google's exact structure)
+# ============================================================================
+
+class GooglePlace(BaseModel):
+    """
+    Google Place model matching the actual Google Places API structure.
+    This allows direct use of model_validate() without manual transformation.
+    """
+    
+    # Core identification
+    name: Optional[str] = Field(None, description="Resource name format: places/{place_id}")
+    id: str = Field(..., description="Unique stable identifier")
+    display_name: Optional[LocalizedText] = Field(None, alias="displayName")
+    
+    # Location
+    location: Optional[LatLng] = None
+    viewport: Optional[Dict[str, Any]] = None
+    
+    # Address information
+    formatted_address: Optional[str] = Field(None, alias="formattedAddress")
+    short_formatted_address: Optional[str] = Field(None, alias="shortFormattedAddress")
+    adr_format_address: Optional[str] = Field(None, alias="adrFormatAddress")
+    
+    # Place types
+    types: Optional[List[str]] = None
+    primary_type: Optional[str] = Field(None, alias="primaryType")
+    primary_type_display_name: Optional[LocalizedText] = Field(None, alias="primaryTypeDisplayName")
+    
+    # Ratings and reviews
+    rating: Optional[float] = None
+    user_rating_count: Optional[int] = Field(None, alias="userRatingCount")
+    reviews: Optional[List[Review]] = None
+    
+    # Contact information
+    national_phone_number: Optional[str] = Field(None, alias="nationalPhoneNumber")
+    international_phone_number: Optional[str] = Field(None, alias="internationalPhoneNumber")
+    website_uri: Optional[str] = Field(None, alias="websiteUri")
+    google_maps_uri: Optional[str] = Field(None, alias="googleMapsUri")
+    
+    # Business information
+    business_status: Optional[str] = Field(None, alias="businessStatus")
+    price_level: Optional[str] = Field(None, alias="priceLevel")
+    price_range: Optional[PriceRange] = Field(None, alias="priceRange")
+    
+    # Opening hours
+    current_opening_hours: Optional[OpeningHours] = Field(None, alias="currentOpeningHours")
+    regular_opening_hours: Optional[OpeningHours] = Field(None, alias="regularOpeningHours")
+    current_secondary_opening_hours: Optional[List[OpeningHours]] = Field(None, alias="currentSecondaryOpeningHours")
+    regular_secondary_opening_hours: Optional[List[OpeningHours]] = Field(None, alias="regularSecondaryOpeningHours")
+    
+    # Editorial content
+    editorial_summary: Optional[LocalizedText] = Field(None, alias="editorialSummary")
+    
+    # Photos
+    photos: Optional[List[Photo]] = None
+    
+    # Restaurant/Dining attributes
+    takeout: Optional[bool] = None
+    delivery: Optional[bool] = None
+    dine_in: Optional[bool] = Field(None, alias="dineIn")
+    curbside_pickup: Optional[bool] = Field(None, alias="curbsidePickup")
+    reservable: Optional[bool] = None
+    
+    serves_breakfast: Optional[bool] = Field(None, alias="servesBreakfast")
+    serves_lunch: Optional[bool] = Field(None, alias="servesLunch")
+    serves_dinner: Optional[bool] = Field(None, alias="servesDinner")
+    serves_brunch: Optional[bool] = Field(None, alias="servesBrunch")
+    serves_beer: Optional[bool] = Field(None, alias="servesBeer")
+    serves_wine: Optional[bool] = Field(None, alias="servesWine")
+    serves_cocktails: Optional[bool] = Field(None, alias="servesCocktails")
+    serves_coffee: Optional[bool] = Field(None, alias="servesCoffee")
+    serves_dessert: Optional[bool] = Field(None, alias="servesDessert")
+    serves_vegetarian_food: Optional[bool] = Field(None, alias="servesVegetarianFood")
+    menu_for_children: Optional[bool] = Field(None, alias="menuForChildren")
+    
+    # Amenities
+    outdoor_seating: Optional[bool] = Field(None, alias="outdoorSeating")
+    live_music: Optional[bool] = Field(None, alias="liveMusic")
+    restroom: Optional[bool] = None
+    good_for_children: Optional[bool] = Field(None, alias="goodForChildren")
+    good_for_groups: Optional[bool] = Field(None, alias="goodForGroups")
+    good_for_watching_sports: Optional[bool] = Field(None, alias="goodForWatchingSports")
+    allows_dogs: Optional[bool] = Field(None, alias="allowsDogs")
+    
+    # Accessibility
+    accessibility_options: Optional[AccessibilityOptions] = Field(None, alias="accessibilityOptions")
+    
+    # Additional metadata
+    utc_offset_minutes: Optional[int] = Field(None, alias="utcOffsetMinutes")
+    icon_mask_base_uri: Optional[str] = Field(None, alias="iconMaskBaseUri")
+    icon_background_color: Optional[str] = Field(None, alias="iconBackgroundColor")
+    
+    model_config = {
+        "populate_by_name": True,  # Allow both camelCase and snake_case
+        "arbitrary_types_allowed": True
+    }
+    
+    # ========================================================================
+    # Helper Methods for Backward Compatibility
+    # ========================================================================
+    
+    @property
+    def latitude(self) -> Optional[float]:
+        """Helper to get latitude from nested location object"""
+        return self.location.latitude if self.location else None
+    
+    @property
+    def longitude(self) -> Optional[float]:
+        """Helper to get longitude from nested location object"""
+        return self.location.longitude if self.location else None
+    
+    @property
+    def display_name_text(self) -> Optional[str]:
+        """Helper to get display name text"""
+        return self.display_name.text if self.display_name else None
+    
+    @property
+    def editorial_summary_text(self) -> Optional[str]:
+        """Helper to get editorial summary text"""
+        return self.editorial_summary.text if self.editorial_summary else None
+    
+    @property
+    def is_open(self) -> Optional[bool]:
+        """Helper to check if currently open"""
+        if self.current_opening_hours:
+            return self.current_opening_hours.open_now
+        return None
+    
+    def get_available_fields(self) -> Dict[str, Any]:
+        """
+        Extract all available fields that have actual values.
+        Excludes None values, empty strings, empty lists, and empty dicts.
+        
+        Returns:
+            Dict containing only fields with meaningful values
+        """
+        available = {}
+        
+        for field_name, field_value in self.model_dump(exclude_none=True, by_alias=False).items():
+            if field_value is not None:
+                # Skip empty collections
+                if isinstance(field_value, (list, dict)) and len(field_value) == 0:
+                    continue
+                available[field_name] = field_value
+        
+        return available
+
+
+# ============================================================================
+# Legacy Models for Backward Compatibility
+# ============================================================================
 
 @dataclass
 class GooglePlacesRequest:
@@ -49,209 +285,6 @@ class GooglePlacesRequest:
         return request
 
 
-class GooglePlace(BaseModel):
-    """Clean model for Google Places based on actual API structure"""
-    
-    # Core identification
-    id: str = Field(..., description="Google Place ID")
-    name: str = Field(..., description="Place name")
-    display_name: Optional[str] = Field(None, description="Display name from LocalizedText")
-    formatted_address: str = Field("", description="Formatted address")
-    short_formatted_address: Optional[str] = Field(None, description="Short formatted address")
-    
-    # Location
-    latitude: Optional[float] = Field(None, description="Latitude coordinate")
-    longitude: Optional[float] = Field(None, description="Longitude coordinate")
-    
-    # Place classification
-    types: List[str] = Field(default_factory=list, description="Place types")
-    primary_type: Optional[str] = Field(None, description="Primary place type")
-    primary_type_display_name: Optional[str] = Field(None, description="Primary type display name")
-    
-    # Business info
-    rating: Optional[float] = Field(None, ge=0, le=5, description="Place rating (0-5)")
-    user_rating_count: Optional[int] = Field(None, ge=0, description="Number of user ratings")
-    price_level: Optional[str] = Field(None, description="Price level enum")
-    business_status: Optional[str] = Field(None, description="Business status")
-    
-    # Contact info
-    national_phone: Optional[str] = Field(None, description="National phone number")
-    international_phone: Optional[str] = Field(None, description="International phone number")
-    website: Optional[str] = Field(None, description="Website URI")
-    google_maps_uri: Optional[str] = Field(None, description="Google Maps URI")
-    
-    # Hours
-    is_open: Optional[bool] = Field(None, description="Whether currently open")
-    
-    # Restaurant-specific attributes
-    takeout: Optional[bool] = Field(None, description="Offers takeout")
-    delivery: Optional[bool] = Field(None, description="Offers delivery")
-    dine_in: Optional[bool] = Field(None, description="Offers dine-in")
-    curbside_pickup: Optional[bool] = Field(None, description="Offers curbside pickup")
-    reservable: Optional[bool] = Field(None, description="Accepts reservations")
-    
-    # Dining attributes
-    serves_breakfast: Optional[bool] = Field(None, description="Serves breakfast")
-    serves_lunch: Optional[bool] = Field(None, description="Serves lunch")
-    serves_dinner: Optional[bool] = Field(None, description="Serves dinner")
-    serves_beer: Optional[bool] = Field(None, description="Serves beer")
-    serves_wine: Optional[bool] = Field(None, description="Serves wine")
-    serves_coffee: Optional[bool] = Field(None, description="Serves coffee")
-    
-    # Amenities
-    outdoor_seating: Optional[bool] = Field(None, description="Has outdoor seating")
-    good_for_children: Optional[bool] = Field(None, description="Good for children")
-    good_for_groups: Optional[bool] = Field(None, description="Good for groups")
-    allows_dogs: Optional[bool] = Field(None, description="Allows dogs")
-    restroom: Optional[bool] = Field(None, description="Has restroom")
-    
-    @classmethod
-    def from_google_place(cls, place_data: Dict[str, Any]) -> 'GooglePlace':
-        """Create GooglePlace from Google's place data"""
-        location = place_data.get("location", {})
-        display_name_obj = place_data.get("displayName", {})
-        primary_type_display_obj = place_data.get("primaryTypeDisplayName", {})
-        current_hours = place_data.get("currentOpeningHours", {})
-        
-        return cls(
-            id=place_data.get("id", ""),
-            name=place_data.get("name", ""),
-            display_name=display_name_obj.get("text") if display_name_obj else None,
-            formatted_address=place_data.get("formattedAddress", ""),
-            short_formatted_address=place_data.get("shortFormattedAddress"),
-            latitude=location.get("latitude"),
-            longitude=location.get("longitude"),
-            types=place_data.get("types", []),
-            primary_type=place_data.get("primaryType"),
-            primary_type_display_name=primary_type_display_obj.get("text") if primary_type_display_obj else None,
-            rating=place_data.get("rating"),
-            user_rating_count=place_data.get("userRatingCount"),
-            price_level=place_data.get("priceLevel"),
-            business_status=place_data.get("businessStatus"),
-            national_phone=place_data.get("nationalPhoneNumber"),
-            international_phone=place_data.get("internationalPhoneNumber"),
-            website=place_data.get("websiteUri"),
-            google_maps_uri=place_data.get("googleMapsUri"),
-            is_open=current_hours.get("openNow") if current_hours else None,
-            takeout=place_data.get("takeout"),
-            delivery=place_data.get("delivery"),
-            dine_in=place_data.get("dineIn"),
-            curbside_pickup=place_data.get("curbsidePickup"),
-            reservable=place_data.get("reservable"),
-            serves_breakfast=place_data.get("servesBreakfast"),
-            serves_lunch=place_data.get("servesLunch"),
-            serves_dinner=place_data.get("servesDinner"),
-            serves_beer=place_data.get("servesBeer"),
-            serves_wine=place_data.get("servesWine"),
-            serves_coffee=place_data.get("servesCoffee"),
-            outdoor_seating=place_data.get("outdoorSeating"),
-            good_for_children=place_data.get("goodForChildren"),
-            good_for_groups=place_data.get("goodForGroups"),
-            allows_dogs=place_data.get("allowsDogs"),
-            restroom=place_data.get("restroom")
-        )
-    
-    def get_available_fields(self) -> Dict[str, Any]:
-        """
-        Extract all available fields that have actual values.
-        Excludes None values, empty strings, empty lists, and empty dicts.
-        
-        Returns:
-            Dict containing only fields with meaningful values
-        """
-        available_fields = {}
-        
-        # Core identification
-        if self.id:
-            available_fields["id"] = self.id
-        if self.name:
-            available_fields["name"] = self.name
-        if self.display_name:
-            available_fields["display_name"] = self.display_name
-        if self.formatted_address:
-            available_fields["formatted_address"] = self.formatted_address
-        if self.short_formatted_address:
-            available_fields["short_formatted_address"] = self.short_formatted_address
-        
-        # Location
-        if self.latitude is not None:
-            available_fields["latitude"] = self.latitude
-        if self.longitude is not None:
-            available_fields["longitude"] = self.longitude
-        
-        # Place classification
-        if self.types:
-            available_fields["types"] = self.types
-        if self.primary_type:
-            available_fields["primary_type"] = self.primary_type
-        if self.primary_type_display_name:
-            available_fields["primary_type_display_name"] = self.primary_type_display_name
-        
-        # Business info
-        if self.rating is not None:
-            available_fields["rating"] = self.rating
-        if self.user_rating_count is not None:
-            available_fields["user_rating_count"] = self.user_rating_count
-        if self.price_level:
-            available_fields["price_level"] = self.price_level
-        if self.business_status:
-            available_fields["business_status"] = self.business_status
-        
-        # Contact info
-        if self.national_phone:
-            available_fields["national_phone"] = self.national_phone
-        if self.international_phone:
-            available_fields["international_phone"] = self.international_phone
-        if self.website:
-            available_fields["website"] = self.website
-        if self.google_maps_uri:
-            available_fields["google_maps_uri"] = self.google_maps_uri
-        
-        # Hours
-        if self.is_open is not None:
-            available_fields["is_open"] = self.is_open
-        
-        # Restaurant-specific attributes
-        if self.takeout is not None:
-            available_fields["takeout"] = self.takeout
-        if self.delivery is not None:
-            available_fields["delivery"] = self.delivery
-        if self.dine_in is not None:
-            available_fields["dine_in"] = self.dine_in
-        if self.curbside_pickup is not None:
-            available_fields["curbside_pickup"] = self.curbside_pickup
-        if self.reservable is not None:
-            available_fields["reservable"] = self.reservable
-        
-        # Dining attributes
-        if self.serves_breakfast is not None:
-            available_fields["serves_breakfast"] = self.serves_breakfast
-        if self.serves_lunch is not None:
-            available_fields["serves_lunch"] = self.serves_lunch
-        if self.serves_dinner is not None:
-            available_fields["serves_dinner"] = self.serves_dinner
-        if self.serves_beer is not None:
-            available_fields["serves_beer"] = self.serves_beer
-        if self.serves_wine is not None:
-            available_fields["serves_wine"] = self.serves_wine
-        if self.serves_coffee is not None:
-            available_fields["serves_coffee"] = self.serves_coffee
-        
-        # Amenities
-        if self.outdoor_seating is not None:
-            available_fields["outdoor_seating"] = self.outdoor_seating
-        if self.good_for_children is not None:
-            available_fields["good_for_children"] = self.good_for_children
-        if self.good_for_groups is not None:
-            available_fields["good_for_groups"] = self.good_for_groups
-        if self.allows_dogs is not None:
-            available_fields["allows_dogs"] = self.allows_dogs
-        if self.restroom is not None:
-            available_fields["restroom"] = self.restroom
-        
-        return available_fields
-
-
 @dataclass
 class GooglePlacesResponse:
     """Wrapper for Google Places API responses using GooglePlace models"""
@@ -262,7 +295,7 @@ class GooglePlacesResponse:
     def from_google_response(cls, response_data: Dict[str, Any]) -> 'GooglePlacesResponse':
         """Create from Google's built-in TextSearchResponse format"""
         places_data = response_data.get("places", [])
-        places = [GooglePlace.from_google_place(place_data) for place_data in places_data]
+        places = [GooglePlace.model_validate(place_data) for place_data in places_data]
         
         return cls(
             places=places,
@@ -272,14 +305,14 @@ class GooglePlacesResponse:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for MongoDB serialization"""
         return {
-            "places": [place.dict() for place in self.places],
+            "places": [place.model_dump(by_alias=True) for place in self.places],
             "next_page_token": self.next_page_token
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GooglePlacesResponse':
         """Create from dictionary (for MongoDB deserialization)"""
-        places = [GooglePlace(**place_data) for place_data in data.get("places", [])]
+        places = [GooglePlace.model_validate(place_data) for place_data in data.get("places", [])]
         return cls(
             places=places,
             next_page_token=data.get("next_page_token")
@@ -291,7 +324,7 @@ class GooglePlacesResponse:
             from error.trip_planner_errors import UserClarificationError
             
             option_places = "\n".join(
-                [place.display_name or place.name for place in self.places]
+                [place.display_name_text or place.name for place in self.places]
             )
             raise UserClarificationError(
                 clarification_questions=[
@@ -303,24 +336,121 @@ class GooglePlacesResponse:
 
 # Field masks for different use cases
 class GooglePlacesFieldMasks:
-    """Predefined field masks for Google Places API requests"""
+    """
+    Field masks for Google Places API endpoints organized by pricing tiers
     
-    BASIC = "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.types"
+    Google's Pricing Tiers:
+    - ESSENTIAL: Basic fields (lowest cost) - id, name, address, location, types
+    - PRO: Contact & atmosphere (medium cost) - adds rating, hours, price, website  
+    - ENTERPRISE: Premium content (highest cost) - adds photos, reviews, editorial
     
-    DETAILED = (
-        "places.id,places.displayName,places.formattedAddress,places.location,"
-        "places.rating,places.types,places.priceLevel,places.businessStatus,"
-        "places.currentOpeningHours,places.websiteUri"
+    Reference: https://developers.google.com/maps/documentation/places/web-service/choose-fields
+    """
+    
+    # ============================================================================
+    # TEXT SEARCH API - Field Masks (uses "places." prefix)
+    # ============================================================================
+    
+    TEXT_SEARCH_ESSENTIAL = (
+        "places.id,"
+        "places.displayName,"
+        "places.formattedAddress,"
+        "places.shortFormattedAddress,"
+        "places.location,"
+        "places.types,"
+        "places.viewport,"
+        "places.addressComponents,"
+        "places.adrFormatAddress,"
+        "places.plusCode"
     )
     
-    COMPREHENSIVE = (
-        "places.id,places.displayName,places.formattedAddress,places.location,"
-        "places.rating,places.types,places.priceLevel,places.businessStatus,"
-        "places.currentOpeningHours,places.websiteUri,places.userRatingCount,"
-        "places.reviews,places.photos"
+    TEXT_SEARCH_PRO = (
+        "places.id,"
+        "places.displayName,"
+        "places.formattedAddress,"
+        "places.shortFormattedAddress,"
+        "places.location,"
+        "places.types,"
+        "places.viewport,"
+        "places.addressComponents,"
+        "places.rating,"
+        "places.userRatingCount,"
+        "places.priceLevel,"
+        "places.businessStatus,"
+        "places.websiteUri,"
+        "places.googleMapsUri,"
+        "places.currentOpeningHours"
     )
+    
+    TEXT_SEARCH_ENTERPRISE = (
+        "places.id,"
+        "places.displayName,"
+        "places.formattedAddress,"
+        "places.location,"
+        "places.types,"
+        "places.rating,"
+        "places.userRatingCount,"
+        "places.priceLevel,"
+        "places.businessStatus,"
+        "places.websiteUri,"
+        "places.currentOpeningHours,"
+        "places.regularOpeningHours,"
+        "places.photos,"
+        "places.reviews,"
+        "places.editorialSummary"
+    )
+    
+    # ============================================================================
+    # NEARBY SEARCH API - Field Masks (uses "places." prefix)
+    # ============================================================================
+    
 
-
-# Backward compatibility aliases (for existing code)
-PlacesSearchResponse = GooglePlacesResponse
-PlacesNearbyResponse = GooglePlacesResponse
+    
+    NEARBY_SEARCH_PRO = (
+        "places.accessibilityOptions,"
+        "places.addressComponents,"
+        "places.adrFormatAddress,"
+        "places.attributions,"
+        "places.businessStatus,"
+        "places.containingPlaces,"
+        "places.displayName,"
+        "places.formattedAddress,"
+        "places.googleMapsLinks,"
+        "places.googleMapsUri,"
+        "places.iconBackgroundColor,"
+        "places.iconMaskBaseUri,"
+        "places.id,"
+        "places.location,"
+        "places.movedPlace,"    
+        "places.movedPlaceId,"
+        "places.photos,"
+        "places.plusCode,"
+        "places.postalAddress,"
+        "places.primaryType,"
+        "places.primaryTypeDisplayName,"
+        "places.pureServiceAreaBusiness,"
+        "places.shortFormattedAddress,"
+        "places.subDestinations,"
+        "places.types,"
+        "places.utcOffsetMinutes,"
+        "places.viewport"
+    )
+    
+    
+    # ============================================================================
+    # PLACE DETAILS API - Field Masks (NO "places." prefix)
+    # ============================================================================
+    
+    PLACE_DETAILS_ESSENTIAL = (
+        "id,"
+        "displayName,"
+        "formattedAddress,"
+        "shortFormattedAddress,"
+        "location,"
+        "types,"
+        "viewport,"
+        "addressComponents,"
+        "adrFormatAddress,"
+        "plusCode"
+    )
+    

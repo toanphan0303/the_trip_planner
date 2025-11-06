@@ -2,14 +2,17 @@
 Google API client using base API infrastructure with comprehensive caching
 """
 
+import logging
 from typing import Optional, Dict, Any, List
-from cache.mongo_cache_decorator import mongo_cached
+from cache.mongo_cache_decorator import mongo_cached, mongo_cached_async
 from .base_api import BaseAPI
 from models.google_map_models import (
     GooglePlacesRequest,
     GooglePlacesResponse,
     GooglePlacesFieldMasks
 )
+
+logger = logging.getLogger(__name__)
 
 
 # MongoDB cache configuration - handled by decorators
@@ -45,21 +48,6 @@ def cache_key_generator(*args, **kwargs):
     return "|".join(key_parts)
 
 
-# Global flag to control cache logging
-CACHE_LOGGING_ENABLED = True
-
-def enable_cache_logging():
-    """Enable cache hit/miss logging"""
-    global CACHE_LOGGING_ENABLED
-    CACHE_LOGGING_ENABLED = True
-    print("🔊 Cache logging enabled")
-
-def disable_cache_logging():
-    """Disable cache hit/miss logging"""
-    global CACHE_LOGGING_ENABLED
-    CACHE_LOGGING_ENABLED = False
-    print("🔇 Cache logging disabled")
-
 def cached_with_logging(cache, key=None):
     """Custom cache decorator that logs cache hits and misses, caches both successful and failed responses"""
     def decorator(func):
@@ -77,28 +65,22 @@ def cached_with_logging(cache, key=None):
                 # Check if in cache
                 if cache_key in cache:
                     cached_result = cache[cache_key]
-                    if CACHE_LOGGING_ENABLED:
-                        print(f"🚀 CACHE HIT for {func.__name__}: {cache_key[:100]}...")
                     
                     # If cached result is an exception, re-raise it
                     if isinstance(cached_result, Exception):
                         raise cached_result
                     return cached_result
                 else:
-                    if CACHE_LOGGING_ENABLED:
-                        print(f"💾 CACHE MISS for {func.__name__}: {cache_key[:100] if cache_key else 'N/A'}...")
                     
                     try:
                         result = await func(*args, **kwargs)
                         cache[cache_key] = result
-                        if CACHE_LOGGING_ENABLED:
-                            print(f"✅ Cached successful result for {func.__name__}")
+                        logger.debug(f"✅ Cached successful result for {func.__name__}")
                         return result
                     except Exception as e:
                         # Cache the exception to avoid repeated failed requests
                         cache[cache_key] = e
-                        if CACHE_LOGGING_ENABLED:
-                            print(f"❌ Cached failed result for {func.__name__}: {type(e).__name__}")
+                        logger.debug(f"❌ Cached failed result for {func.__name__}: {type(e).__name__}")
                         raise e
             
             return async_wrapper
@@ -111,28 +93,24 @@ def cached_with_logging(cache, key=None):
                 # Check if in cache
                 if cache_key in cache:
                     cached_result = cache[cache_key]
-                    if CACHE_LOGGING_ENABLED:
-                        print(f"🚀 CACHE HIT for {func.__name__}: {cache_key[:100]}...")
+                    logger.debug(f"🚀 CACHE HIT for {func.__name__}: {cache_key[:100]}...")
                     
                     # If cached result is an exception, re-raise it
                     if isinstance(cached_result, Exception):
                         raise cached_result
                     return cached_result
                 else:
-                    if CACHE_LOGGING_ENABLED:
-                        print(f"💾 CACHE MISS for {func.__name__}: {cache_key[:100] if cache_key else 'N/A'}...")
+                    logger.debug(f"💾 CACHE MISS for {func.__name__}: {cache_key[:100] if cache_key else 'N/A'}...")
                     
                     try:
                         result = func(*args, **kwargs)
                         cache[cache_key] = result
-                        if CACHE_LOGGING_ENABLED:
-                            print(f"✅ Cached successful result for {func.__name__}")
+                        logger.debug(f"✅ Cached successful result for {func.__name__}")
                         return result
                     except Exception as e:
                         # Cache the exception to avoid repeated failed requests
                         cache[cache_key] = e
-                        if CACHE_LOGGING_ENABLED:
-                            print(f"❌ Cached failed result for {func.__name__}: {type(e).__name__}")
+                        logger.debug(f"❌ Cached failed result for {func.__name__}: {type(e).__name__}")
                         raise e
             
             return sync_wrapper
@@ -164,6 +142,22 @@ class GoogleAPI(BaseAPI):
         }
         
         return price_mapping.get(price_level)
+    
+    def _get_headers(self, field_mask: str) -> Dict[str, str]:
+        """
+        Generate standard headers for Google Places API requests.
+        
+        Args:
+            field_mask: The field mask for the API request
+            
+        Returns:
+            Dictionary of headers
+        """
+        return {
+            "X-Goog-Api-Key": self.api_key,
+            "X-Goog-FieldMask": field_mask,
+            "Content-Type": "application/json",
+        }
     
     @mongo_cached("google_places_search")
     def places_search_text(
@@ -220,11 +214,7 @@ class GoogleAPI(BaseAPI):
             location_restriction=location_restriction
         )
 
-        headers = {
-            "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": GooglePlacesFieldMasks.DETAILED,
-            "Content-Type": "application/json",
-        }
+        headers = self._get_headers(GooglePlacesFieldMasks.TEXT_SEARCH_ESSENTIAL)
 
         # Make request using Google's built-in TextSearchRequest format
         response_data = self._post(endpoint, data=request.to_google_request(), headers=headers)
@@ -238,7 +228,6 @@ class GoogleAPI(BaseAPI):
         location: str, 
         radius: int = 1000, 
         place_types: Optional[List[str]] = None, 
-        keyword: Optional[str] = None, 
         language: Optional[str] = None,
         region_code: Optional[str] = None,
         max_results: int = 20
@@ -250,7 +239,6 @@ class GoogleAPI(BaseAPI):
             location: Latitude,longitude or place_id to search near.
             radius: Search radius in meters (max 50000).
             place_types: Optional list of place types to include (e.g., ['restaurant', 'tourist_attraction']).
-            keyword: Optional keyword to search for (not supported in v1, will be ignored).
             language: Optional language code for results.
             region_code: Optional region code to bias results.
             max_results: Maximum number of results to return (1-20).
@@ -296,33 +284,21 @@ class GoogleAPI(BaseAPI):
         if place_types:
             payload["includedTypes"] = place_types
         
-        headers = {
-            "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": (
-                "places.id,"
-                "places.displayName,"
-                "places.formattedAddress,"
-                "places.location,"
-                "places.rating,"
-                "places.userRatingCount,"
-                "places.types,"
-                "places.priceLevel"
-            ),
-            "Content-Type": "application/json",
-        }
+        headers = self._get_headers(GooglePlacesFieldMasks.NEARBY_SEARCH_PRO)
         
         response_data = self._post(endpoint, data=payload, headers=headers)
         
         # Return response using Google's built-in models
         return GooglePlacesResponse.from_google_response(response_data)
     
-    @mongo_cached("google_places_nearby")
+    @mongo_cached_async("google_places_nearby")
     async def places_nearby_search_async(
         self, 
         location: str, 
         radius: int = 1000, 
         place_types: Optional[List[str]] = None, 
-        keyword: Optional[str] = None, 
+        *,
+        field_mask: Optional[str] = GooglePlacesFieldMasks.NEARBY_SEARCH_PRO,
         language: Optional[str] = None,
         region_code: Optional[str] = None,
         max_results: int = 20
@@ -380,23 +356,7 @@ class GoogleAPI(BaseAPI):
         if place_types:
             payload["includedTypes"] = place_types
         
-        headers = {
-            "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": (
-                "places.id,"
-                "places.displayName,"
-                "places.formattedAddress,"
-                "places.location,"
-                "places.rating,"
-                "places.userRatingCount,"
-                "places.types,"
-                "places.priceLevel"
-            ),
-            "Content-Type": "application/json",
-        }
-        print(f"Payload: {payload}")
-        print(f"Headers: {headers}")
-        print(f"Endpoint: {endpoint}")
+        headers = self._get_headers(field_mask)
         
         response_data = await self._post_async(endpoint, data=payload, headers=headers)
         
@@ -438,9 +398,10 @@ class GoogleAPI(BaseAPI):
         self,
         place_id: str,
         *,
+        field_mask: Optional[str] = GooglePlacesFieldMasks.PLACE_DETAILS_ESSENTIAL,
         language_code: Optional[str] = None,
         region_code: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ):
         """
         Call Google Places Place Details API v1 to get detailed information about a specific place.
         
@@ -450,8 +411,10 @@ class GoogleAPI(BaseAPI):
             region_code: Optional region code to bias results.
             
         Returns:
-            Dict with detailed place information from Google Places API.
+            GooglePlace object with detailed place information from Google Places API.
         """
+        from models.google_map_models import GooglePlace
+        
         endpoint = f"https://places.googleapis.com/v1/places/{place_id}"
         
         # Build query parameters
@@ -461,78 +424,81 @@ class GoogleAPI(BaseAPI):
         if region_code:
             params["regionCode"] = region_code
         
-        # Use the specified fields for place details
-        fields = [
-            # Basic fields
-            "id", "displayName", "formattedAddress", "location", 
-            "rating", "types", "priceLevel", "businessStatus",
-            
-            # Enhanced fields
-            "websiteUri", "userRatingCount", "editorialSummary", 
-            "primaryType", "primaryTypeDisplayName", "nationalPhoneNumber", 
-            "internationalPhoneNumber", "utcOffsetMinutes", 
-            "regularOpeningHours", "attributions", "reviews"
-        ]
+        # Use ESSENTIAL tier for Place Details (basic address fields only)
+        # Note: Place Details API uses field names WITHOUT "places." prefix
+        field_mask = field_mask
         
-        # Field mask should use just the field names for Google Places API v1
-        field_mask = ",".join(fields)
-        
-        headers = {
-            "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": field_mask,
-            "Content-Type": "application/json",
-        }
+        headers = self._get_headers(field_mask)
         
         try:
             # Make GET request to Place Details endpoint
             response_data = self._get(endpoint, params=params, headers=headers)
             
-            # Return the place details directly
-            return response_data
+            # Convert to GooglePlace object using model_validate (handles nested structure automatically)
+            return GooglePlace.model_validate(response_data)
             
         except Exception as e:
             # Add better error handling and debugging
-            print(f"Error calling Google Places Details API for place_id: {place_id}")
-            print(f"Endpoint: {endpoint}")
-            print(f"Field mask: {field_mask}")
-            print(f"Error: {str(e)}")
+            logger.error(f"Error calling Google Places Details API for place_id: {place_id}")
+            logger.error(f"Endpoint: {endpoint}")
+            logger.error(f"Field mask: {field_mask}")
+            logger.error(f"Error: {str(e)}")
             raise e
     
     def clear_cache(self, cache_type: Optional[str] = None):
         """
-        Clear cache entries.
+        Clear MongoDB cache entries.
         
         Args:
-            cache_type: Specific cache to clear ('places_search', 'places_nearby', 'geocoding', 'place_details').
-                       If None, clears all caches.
+            cache_type: Specific cache to clear (e.g., 'google_places_search', 'google_place_details').
+                       If None, clears all Google API caches.
         """
+        from cache.mongo_db_cache import get_mongo_cache
+        cache = get_mongo_cache()
+        
         if cache_type:
-            if cache_type in CACHE_CONFIG:
-                CACHE_CONFIG[cache_type].clear()
-                print(f"Cleared {cache_type} cache")
-            else:
-                print(f"Unknown cache type: {cache_type}")
+            if hasattr(cache, 'collections') and cache_type in cache.collections:
+                cache.collections[cache_type].delete_many({})
         else:
-            for cache_name, cache in CACHE_CONFIG.items():
-                cache.clear()
-            print("Cleared all caches")
+            # Clear all Google-related caches
+            google_cache_types = [
+                'google_places_search',
+                'google_places_nearby',
+                'google_geocoding',
+                'google_place_details'
+            ]
+            for cache_name in google_cache_types:
+                if hasattr(cache, 'collections') and cache_name in cache.collections:
+                    cache.collections[cache_name].delete_many({})
     
     def get_cache_info(self) -> Dict[str, Dict[str, Any]]:
         """
-        Get information about cache usage.
+        Get information about MongoDB cache usage.
         
         Returns:
             Dict with cache statistics for each cache type.
         """
+        from cache.mongo_db_cache import get_mongo_cache
+        cache = get_mongo_cache()
+        
         cache_info = {}
-        for cache_name, cache in CACHE_CONFIG.items():
-            cache_info[cache_name] = {
-                'size': len(cache),
-                'maxsize': cache.maxsize,
-                'ttl': cache.ttl,
-                'hits': getattr(cache, 'hits', 0),
-                'misses': getattr(cache, 'misses', 0)
-            }
+        google_cache_types = [
+            'google_places_search',
+            'google_places_nearby',
+            'google_geocoding',
+            'google_place_details'
+        ]
+        
+        for cache_name in google_cache_types:
+            if hasattr(cache, 'collections') and cache_name in cache.collections:
+                collection = cache.collections[cache_name]
+                total = collection.count_documents({})
+                cache_info[cache_name] = {
+                    'total_entries': total,
+                    'backend': 'mongodb',
+                    'ttl_days': 30
+                }
+        
         return cache_info
 
 
@@ -550,9 +516,16 @@ def google_places_search_text(query: str, *, max_results: int = 10, language_cod
     else:
         return response
 
-def google_places_nearby_search(location: str, radius: int = 1000, place_types: Optional[List[str]] = None, keyword: Optional[str] = None, language: Optional[str] = None, region_code: Optional[str] = None, max_results: int = 20) -> GooglePlacesResponse:
+def google_places_nearby_search(location: str, radius: int = 1000, place_types: Optional[List[str]] = None, language: Optional[str] = None, region_code: Optional[str] = None, max_results: int = 20) -> GooglePlacesResponse:
     """Convenience function for places nearby search"""
-    response = _google_api.places_nearby_search(location, radius, place_types, keyword, language, region_code, max_results)
+    response = _google_api.places_nearby_search(
+        location, 
+        radius, 
+        place_types, 
+        language=language, 
+        region_code=region_code, 
+        max_results=max_results
+    )
     
     # Handle both object and dictionary responses (from cache)
     if isinstance(response, dict):
@@ -560,9 +533,16 @@ def google_places_nearby_search(location: str, radius: int = 1000, place_types: 
     else:
         return response
 
-async def google_places_nearby_search_async(location: str, radius: int = 1000, place_types: Optional[List[str]] = None, keyword: Optional[str] = None, language: Optional[str] = None, region_code: Optional[str] = None, max_results: int = 20) -> GooglePlacesResponse:
+async def google_places_nearby_search_async(location: str, radius: int = 1000, place_types: Optional[List[str]] = None, language: Optional[str] = None, region_code: Optional[str] = None, max_results: int = 20) -> GooglePlacesResponse:
     """Convenience function for async places nearby search"""
-    response = await _google_api.places_nearby_search_async(location, radius, place_types, keyword, language, region_code, max_results)
+    response = await _google_api.places_nearby_search_async(
+        location, 
+        radius, 
+        place_types, 
+        language=language, 
+        region_code=region_code, 
+        max_results=max_results
+    )
     
     # Handle both object and dictionary responses (from cache)
     if isinstance(response, dict):
@@ -574,8 +554,8 @@ def google_geocode(address: str, language: Optional[str] = None, region: Optiona
     """Convenience function for geocoding"""
     return _google_api.geocode(address, language, region)
 
-def google_place_details(place_id: str, *, language_code: Optional[str] = None, region_code: Optional[str] = None) -> Dict[str, Any]:
-    """Convenience function for place details"""
+def google_place_details(place_id: str, *, language_code: Optional[str] = None, region_code: Optional[str] = None):
+    """Convenience function for place details - returns GooglePlace object"""
     return _google_api.google_place_details(place_id, language_code=language_code, region_code=region_code)
 
 
@@ -590,12 +570,3 @@ def get_google_api_cache_info() -> Dict[str, Dict[str, Any]]:
     return _google_api.get_cache_info()
 
 
-# Cache logging convenience functions
-def enable_google_api_cache_logging():
-    """Enable cache hit/miss logging for Google API calls"""
-    enable_cache_logging()
-
-
-def disable_google_api_cache_logging():
-    """Disable cache hit/miss logging for Google API calls"""
-    disable_cache_logging()

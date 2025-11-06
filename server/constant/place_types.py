@@ -1,855 +1,515 @@
 """
-Google Places API Place Types - Base Types System
+Google Places API Place Types - Simplified
 Based on: https://developers.google.com/maps/documentation/places/web-service/place-types
-
-This module defines comprehensive place types organized by categories for use in Google Places API calls.
-Table A types can be used in both requests and responses, while Table B types are primarily for responses.
 """
 
-from typing import List, Set
-from enum import Enum
+import logging
+from typing import List, Set, Optional, Dict, Any, TYPE_CHECKING
+from pydantic import BaseModel, Field
+from user_profile.models import TravelStyle
+
+if TYPE_CHECKING:
+    from user_profile.models import UserPreference
+    from user_profile.ephemeral.preference_override_model import PreferenceOverride
+
+logger = logging.getLogger(__name__)
 
 
-class PlaceTypeCategory(Enum):
-    """Categories for organizing place types"""
-    AUTOMOTIVE = "automotive"
-    BUSINESS = "business"
-    CULTURE = "culture"
-    EDUCATION = "education"
-    ENTERTAINMENT_RECREATION = "entertainment_recreation"
-    FACILITIES = "facilities"
-    FINANCE = "finance"
-    FOOD_DRINK = "food_drink"
-    GEOGRAPHICAL_AREAS = "geographical_areas"
-    GOVERNMENT = "government"
-    HEALTH_WELLNESS = "health_wellness"
-    HOUSING = "housing"
-    LODGING = "lodging"
-    NATURAL_FEATURES = "natural_features"
-    PLACES_OF_WORSHIP = "places_of_worship"
-    SERVICES = "services"
-    SHOPPING = "shopping"
-    SPORTS = "sports"
-    TRANSPORTATION = "transportation"
+def calculate_place_type_range(duration_days: Optional[int] = None) -> tuple[int, int]:
+    """
+    Calculate the recommended range of place types based on trip duration.
+    
+    Args:
+        duration_days: Trip duration in days (None defaults to 4-7)
+    
+    Returns:
+        Tuple of (min_types, max_types)
+    """
+    if duration_days is None:
+        return (4, 7)
+    
+    if duration_days <= 2:
+        return (4, 6)
+    elif duration_days <= 5:
+        return (6, 10)
+    elif duration_days <= 10:
+        return (10, 15)
+    else:
+        return (15, 20)
 
 
-# Table A - Types that can be used in both requests and responses
-# Based on official Google Places API documentation
-TABLE_A_TYPES = {
-    PlaceTypeCategory.AUTOMOTIVE: [
-        "car_dealer",
-        "car_rental", 
-        "car_repair",
-        "car_wash",
-        "electric_vehicle_charging_station",
-        "gas_station",
-        "parking",
-        "rest_stop",
-        "auto_parts_store",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.BUSINESS: [
-        "atm",
-        "bank",
-        "insurance_agency",
-        "post_office",
-        "real_estate_agency",
-        "storage",
-        "accounting",
-        "general_contractor",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.CULTURE: [
-        "art_gallery",
-        "museum",
-        "tourist_attraction",
-        "cultural_landmark",
-        "historical_place",
-        "point_of_interest"
-    ],
-    
-    PlaceTypeCategory.EDUCATION: [
-        "library",
-        "primary_school",
-        "school",
-        "secondary_school",
-        "university",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.ENTERTAINMENT_RECREATION: [
-        "amusement_park",
-        "aquarium",
-        "art_gallery",
-        "bowling_alley",
-        "casino",
-        "movie_theater",
-        "night_club",
-        "park",
-        "tourist_attraction",
-        "zoo",
-        "campground",
-        "rv_park",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.FACILITIES: [
-        "courthouse",
-        "embassy",
-        "fire_station",
-        "funeral_home",
-        "hospital",
-        "local_government_office",
-        "police",
-        "post_office",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.FINANCE: [
-        "atm",
-        "bank",
-        "insurance_agency",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.FOOD_DRINK: [
-        "bakery",
-        "bar",
-        "cafe",
-        "meal_delivery",
-        "meal_takeaway",
-        "restaurant",
-        "food",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.GEOGRAPHICAL_AREAS: [
-        "administrative_area_level_1",
-        "administrative_area_level_2",
-        "administrative_area_level_3",
-        "administrative_area_level_4",
-        "administrative_area_level_5",
-        "administrative_area_level_6",
-        "administrative_area_level_7",
-        "colloquial_area",
-        "country",
-        "locality",
-        "neighborhood",
-        "political",
-        "postal_code",
-        "premise",
-        "route",
-        "street_address",
-        "sublocality",
-        "sublocality_level_1",
-        "sublocality_level_2",
-        "sublocality_level_3",
-        "sublocality_level_4",
-        "sublocality_level_5",
-        "subpremise",
-        "plus_code"
-    ],
-    
-    PlaceTypeCategory.GOVERNMENT: [
-        "courthouse",
-        "embassy",
-        "local_government_office",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.HEALTH_WELLNESS: [
-        "dentist",
-        "doctor",
-        "drugstore",
-        "hospital",
-        "pharmacy",
-        "physiotherapist",
-        "veterinary_care",
-        "health",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.HOUSING: [
-        "lodging",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.LODGING: [
-        "lodging",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.NATURAL_FEATURES: [
-        "natural_feature",
-        "park",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.PLACES_OF_WORSHIP: [
-        "church",
-        "hindu_temple",
-        "mosque",
-        "synagogue",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.SERVICES: [
-        "beauty_salon",
-        "car_repair",
-        "car_wash",
-        "electrician",
-        "funeral_home",
-        "hair_care",
-        "laundry",
-        "lawyer",
-        "locksmith",
-        "moving_company",
-        "painter",
-        "plumber",
-        "roofing_contractor",
-        "storage",
-        "travel_agency",
-        "accounting",
-        "general_contractor",
-        "insurance_agency",
-        "real_estate_agency",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.SHOPPING: [
-        "bicycle_store",
-        "book_store",
-        "clothing_store",
-        "convenience_store",
-        "department_store",
-        "electronics_store",
-        "furniture_store",
-        "hardware_store",
-        "home_goods_store",
-        "jewelry_store",
-        "liquor_store",
-        "pet_store",
-        "shoe_store",
-        "shopping_mall",
-        "store",
-        "supermarket",
-        "auto_parts_store",
-        "florist",
-        "market",
-        "mobile_phone_shop",
-        "wholesale_store",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.SPORTS: [
-        "gym",
-        "stadium",
-        "sports_complex",
-        "swimming_pool",
-        "establishment"
-    ],
-    
-    PlaceTypeCategory.TRANSPORTATION: [
-        "airport",
-        "bus_station",
-        "subway_station",
-        "taxi_stand",
-        "train_station",
-        "transit_station",
-        "light_rail_station",
-        "establishment"
-    ]
-}
-
-# Additional Table A types that don't fit neatly into existing categories
-# These are from the official Google Places API documentation
-ADDITIONAL_TABLE_A_TYPES = {
-    "establishment",
-    "food",
-    "point_of_interest"
-}
-
-# Travel Persona Types - Grouped by travel style for LLM classification
-# These keywords help the AI understand what types of places different travelers prefer
-TRAVEL_PERSONA_TYPES = {
-    "solo_traveler": {
-        "keywords": ["solo", "independent", "alone", "backpacker", "digital nomad", "solo adventure"],
-        "place_types": [
-            # Food & Drink - Solo travelers often enjoy cafes, bars, restaurants
-            "cafe", "bar", "restaurant", "bakery", "food",
-            # Entertainment - Movies, nightlife, cultural activities
-            "movie_theater", "night_club", "art_gallery", "museum", "tourist_attraction",
-            # Transportation - Easy access is important
-            "airport", "bus_station", "train_station", "transit_station", "taxi_stand",
-            # Services - Practical needs
-            "atm", "bank", "pharmacy", "convenience_store", "store",
-            # Culture & Exploration
-            "cultural_landmark", "historical_place", "point_of_interest", "establishment"
-        ]
-    },
-    
-    "family_with_kids": {
-        "keywords": ["family", "kids", "children", "family-friendly", "family vacation", "with kids"],
-        "place_types": [
-            # Entertainment - Kid-friendly activities
-            "amusement_park", "aquarium", "zoo", "park", "bowling_alley", "tourist_attraction",
-            # Food - Family restaurants, convenience
-            "restaurant", "cafe", "bakery", "convenience_store", "supermarket", "food",
-            # Education - Learning opportunities
-            "museum", "library", "school", "university",
-            # Health & Safety
-            "hospital", "pharmacy", "doctor", "dentist", "police", "fire_station",
-            # Transportation
-            "airport", "bus_station", "train_station", "parking",
-            # Services
-            "atm", "bank", "store", "shopping_mall", "establishment"
-        ]
-    },
-    
-    "couple_romantic": {
-        "keywords": ["couple", "romantic", "honeymoon", "anniversary", "date night", "romantic getaway"],
-        "place_types": [
-            # Food & Drink - Fine dining, romantic settings
-            "restaurant", "bar", "cafe", "bakery", "food",
-            # Entertainment - Cultural, intimate venues
-            "art_gallery", "museum", "movie_theater", "night_club", "tourist_attraction",
-            # Nature & Scenic
-            "park", "natural_feature", "cultural_landmark", "historical_place",
-            # Lodging - Romantic accommodations
-            "lodging", "establishment",
-            # Services
-            "pharmacy", "convenience_store", "store", "atm", "bank"
-        ]
-    },
-    
-    "adventure_explorer": {
-        "keywords": ["adventure", "explorer", "outdoor", "hiking", "nature", "adventure seeker", "outdoor enthusiast"],
-        "place_types": [
-            # Nature & Outdoor
-            "park", "natural_feature", "campground", "rv_park", "tourist_attraction",
-            # Sports & Recreation
-            "gym", "stadium", "sports_complex", "swimming_pool",
-            # Transportation - Remote access
-            "airport", "bus_station", "train_station", "parking", "gas_station",
-            # Food - Casual, practical
-            "restaurant", "cafe", "convenience_store", "supermarket", "food",
-            # Services - Essential
-            "hospital", "pharmacy", "atm", "bank", "store", "establishment"
-        ]
-    },
-    
-    "food_enthusiast": {
-        "keywords": ["foodie", "culinary", "gastronomy", "food lover", "dining", "restaurant", "cuisine"],
-        "place_types": [
-            # Food & Drink - All types
-            "restaurant", "cafe", "bar", "bakery", "food", "meal_delivery", "meal_takeaway",
-            # Shopping - Food-related
-            "supermarket", "convenience_store", "market", "store", "liquor_store",
-            # Entertainment - Food-related activities
-            "tourist_attraction", "cultural_landmark", "historical_place",
-            # Services
-            "atm", "bank", "pharmacy", "establishment"
-        ]
-    },
-    
-    "culture_art_lover": {
-        "keywords": ["culture", "art", "museum", "gallery", "cultural", "artistic", "history", "heritage"],
-        "place_types": [
-            # Culture & Arts
-            "museum", "art_gallery", "cultural_landmark", "historical_place", "tourist_attraction",
-            # Education
-            "library", "university", "school",
-            # Entertainment - Cultural venues
-            "movie_theater", "theater", "night_club",
-            # Places of Worship - Cultural significance
-            "church", "mosque", "synagogue", "hindu_temple",
-            # Food - Cultural dining
-            "restaurant", "cafe", "bar", "food",
-            # Services
-            "atm", "bank", "store", "establishment"
-        ]
-    },
-    
-    "business_traveler": {
-        "keywords": ["business", "corporate", "work", "meeting", "conference", "professional"],
-        "place_types": [
-            # Business & Finance
-            "bank", "atm", "insurance_agency", "accounting", "real_estate_agency",
-            # Transportation - Efficiency important
-            "airport", "bus_station", "train_station", "taxi_stand", "parking",
-            # Lodging - Business accommodations
-            "lodging", "establishment",
-            # Food - Quick, convenient
-            "restaurant", "cafe", "convenience_store", "food",
-            # Services - Professional needs
-            "post_office", "pharmacy", "hospital", "doctor", "store",
-            # Government & Facilities
-            "courthouse", "embassy", "local_government_office"
-        ]
-    },
-    
-    "budget_backpacker": {
-        "keywords": ["budget", "backpacker", "cheap", "affordable", "hostel", "budget travel", "backpacking"],
-        "place_types": [
-            # Transportation - Budget options
-            "bus_station", "train_station", "transit_station", "parking",
-            # Food - Affordable options
-            "restaurant", "cafe", "convenience_store", "supermarket", "food",
-            # Lodging - Budget accommodations
-            "lodging", "campground", "rv_park", "establishment",
-            # Services - Essential only
-            "atm", "bank", "pharmacy", "hospital", "store",
-            # Entertainment - Free/cheap activities
-            "park", "tourist_attraction", "museum", "library"
-        ]
-    },
-    
-    "luxury_traveler": {
-        "keywords": ["luxury", "premium", "high-end", "upscale", "exclusive", "luxury travel"],
-        "place_types": [
-            # Food & Drink - Fine dining
-            "restaurant", "bar", "cafe", "bakery", "food",
-            # Entertainment - Premium venues
-            "casino", "night_club", "art_gallery", "museum", "tourist_attraction",
-            # Shopping - High-end
-            "shopping_mall", "jewelry_store", "clothing_store", "department_store", "store",
-            # Lodging - Luxury accommodations
-            "lodging", "establishment",
-            # Transportation - Premium options
-            "airport", "taxi_stand", "parking",
-            # Services - Premium services
-            "bank", "atm", "pharmacy", "hospital", "beauty_salon", "spa"
-        ]
-    },
-    
-    "wellness_retreat": {
-        "keywords": ["wellness", "spa", "relaxation", "health", "wellness retreat", "healing", "meditation"],
-        "place_types": [
-            # Health & Wellness
-            "hospital", "pharmacy", "doctor", "dentist", "physiotherapist", "veterinary_care", "health",
-            # Services - Wellness-related
-            "beauty_salon", "hair_care", "spa", "massage", "establishment",
-            # Nature - Peaceful settings
-            "park", "natural_feature", "tourist_attraction",
-            # Food - Healthy options
-            "restaurant", "cafe", "supermarket", "food",
-            # Places of Worship - Spiritual
-            "church", "mosque", "synagogue", "hindu_temple",
-            # Lodging - Wellness accommodations
-            "lodging", "establishment"
-        ]
-    }
-}
-
-# Table B - Additional types primarily for responses (can be used in Autocomplete includedPrimaryTypes)
-TABLE_B_TYPES = {
-    PlaceTypeCategory.FOOD_DRINK: [
-        "american_restaurant",
-        "asian_restaurant",
-        "barbecue_restaurant",
-        "brazilian_restaurant",
-        "breakfast_restaurant",
-        "brunch_restaurant",
-        "chinese_restaurant",
-        "fast_food_restaurant",
-        "french_restaurant",
-        "greek_restaurant",
-        "hamburger_restaurant",
-        "ice_cream_shop",
-        "indian_restaurant",
-        "indonesian_restaurant",
-        "italian_restaurant",
-        "japanese_restaurant",
-        "korean_restaurant",
-        "lebanese_restaurant",
-        "meal_delivery",
-        "meal_takeaway",
-        "mediterranean_restaurant",
-        "mexican_restaurant",
-        "middle_eastern_restaurant",
-        "pizza_restaurant",
-        "ramen_restaurant",
-        "restaurant",
-        "sandwich_shop",
-        "seafood_restaurant",
-        "spanish_restaurant",
-        "steak_house",
-        "sushi_restaurant",
-        "thai_restaurant",
-        "turkish_restaurant",
-        "vegan_restaurant",
-        "vegetarian_restaurant",
-        "vietnamese_restaurant"
-    ],
-    
-    PlaceTypeCategory.SHOPPING: [
-        "auto_parts_store",
-        "bicycle_store",
-        "book_store",
-        "car_dealer",
-        "clothing_store",
-        "convenience_store",
-        "department_store",
-        "electronics_store",
-        "florist",
-        "furniture_store",
-        "hardware_store",
-        "home_goods_store",
-        "jewelry_store",
-        "liquor_store",
-        "market",
-        "mobile_phone_shop",
-        "pet_store",
-        "shoe_store",
-        "shopping_mall",
-        "store",
-        "supermarket",
-        "wholesale_store"
-    ],
-    
-    PlaceTypeCategory.ENTERTAINMENT_RECREATION: [
-        "amusement_park",
-        "aquarium",
-        "art_gallery",
-        "bowling_alley",
-        "casino",
-        "movie_theater",
-        "night_club",
-        "park",
-        "tourist_attraction",
-        "zoo"
-    ],
-    
-    PlaceTypeCategory.HEALTH_WELLNESS: [
-        "dentist",
-        "doctor",
-        "drugstore",
-        "hospital",
-        "pharmacy",
-        "physiotherapist",
-        "veterinary_care"
-    ],
-    
-    PlaceTypeCategory.SERVICES: [
-        "beauty_salon",
-        "car_repair",
-        "car_wash",
-        "electrician",
-        "funeral_home",
-        "hair_care",
-        "laundry",
-        "lawyer",
-        "locksmith",
-        "moving_company",
-        "painter",
-        "plumber",
-        "roofing_contractor",
-        "storage",
-        "travel_agency"
-    ]
-}
-
-# Combined types for easy access
-ALL_TABLE_A_TYPES: Set[str] = set()
-for category_types in TABLE_A_TYPES.values():
-    ALL_TABLE_A_TYPES.update(category_types)
-# Add the additional Table A types
-ALL_TABLE_A_TYPES.update(ADDITIONAL_TABLE_A_TYPES)
-
-ALL_TABLE_B_TYPES: Set[str] = set()
-for category_types in TABLE_B_TYPES.values():
-    ALL_TABLE_B_TYPES.update(category_types)
-
-ALL_PLACE_TYPES: Set[str] = ALL_TABLE_A_TYPES.union(ALL_TABLE_B_TYPES)
-
+class SelectedPlaceTypes(BaseModel):
+    place_types: List[str] = Field(description="Selected place types based on trip duration")
+    reason: str = Field(description="Reason for selecting the place types (max 2 sentences)")
 
 class PlaceTypes:
-    """Main class for accessing place types organized by categories"""
+    """Main class for accessing place types"""
     
     @staticmethod
-    def get_types_by_category(category: PlaceTypeCategory, table: str = "A") -> List[str]:
+    def get_food_types() -> Set[str]:
         """
-        Get place types for a specific category
+        Get all food and drink related place types.
+        Used to identify restaurants and food establishments.
         
-        Args:
-            category: The place type category
-            table: "A" for Table A types (request/response), "B" for Table B types (response only)
-            
         Returns:
-            List of place types for the category
+            Set of food/drink place type strings (lowercase)
         """
-        if table.upper() == "A":
-            return TABLE_A_TYPES.get(category, [])
-        elif table.upper() == "B":
-            return TABLE_B_TYPES.get(category, [])
-        else:
-            raise ValueError("Table must be 'A' or 'B'")
-    
-    @staticmethod
-    def get_all_table_a_types() -> List[str]:
-        """Get all Table A types (can be used in requests)"""
-        return list(ALL_TABLE_A_TYPES)
-    
-    @staticmethod
-    def get_all_table_b_types() -> List[str]:
-        """Get all Table B types (response only)"""
-        return list(ALL_TABLE_B_TYPES)
-    
-    @staticmethod
-    def get_all_types() -> List[str]:
-        """Get all place types from both tables"""
-        return list(ALL_PLACE_TYPES)
+        return {
+            # Table A - Food & Drink base types
+            "bakery",
+            "bar",
+            "cafe",
+            "meal_delivery",
+            "meal_takeaway",
+            "restaurant",
+            "food",
+            
+            # Table B - Specific restaurant types
+            "american_restaurant",
+            "asian_restaurant",
+            "barbecue_restaurant",
+            "brazilian_restaurant",
+            "breakfast_restaurant",
+            "brunch_restaurant",
+            "chinese_restaurant",
+            "fast_food_restaurant",
+            "french_restaurant",
+            "greek_restaurant",
+            "hamburger_restaurant",
+            "ice_cream_shop",
+            "indian_restaurant",
+            "indonesian_restaurant",
+            "italian_restaurant",
+            "japanese_restaurant",
+            "korean_restaurant",
+            "lebanese_restaurant",
+            "mediterranean_restaurant",
+            "mexican_restaurant",
+            "middle_eastern_restaurant",
+            "pizza_restaurant",
+            "ramen_restaurant",
+            "sandwich_shop",
+            "seafood_restaurant",
+            "spanish_restaurant",
+            "steak_house",
+            "sushi_restaurant",
+            "thai_restaurant",
+            "turkish_restaurant",
+            "vegan_restaurant",
+            "vegetarian_restaurant",
+            "vietnamese_restaurant"
+        }
     
     @staticmethod
     def get_trip_planning_types() -> List[str]:
         """
-        Get comprehensive list of place types for trip planning
-        Covers all travel personas and common tourist needs
+        Get comprehensive list of place types for trip planning.
+        Covers common tourist attractions and essential services.
+        
+        Returns:
+            List of place type strings suitable for trip planning searches
         """
         return [
-            # Attractions and Culture - Universal appeal
+            # 🏙️ Landmarks & Attractions
             "tourist_attraction",
+            "point_of_interest",
             "museum",
             "art_gallery",
-            "cultural_landmark",
-            "historical_place",
-            "point_of_interest",
-            
-            # Entertainment - Broad appeal
             "park",
-            "zoo",
-            "aquarium",
             "amusement_park",
-            "night_club",
-            "casino",
-            "bowling_alley",
-            "stadium",
-            
-            # Food and Drink - Essential for all travelers
+            "aquarium",
+            "zoo",
+            "natural_feature",
+            "historical_landmark",
+
+            # 🌆 Cultural & Heritage
+            "church",
+            "library",
+            "city_hall",
+            "university",
+            "historical_place",
+            "cultural_landmark",
+            "museum",
+            "monument",
+
+            # entertainment and recreation
+            "tourist_attraction",
+            "off_roading_area",
+            "park",
+            "picnic_ground",
+            "zoo",
+            "amusement_park",
+            "cycling_park",
+            "cultural_center",
+            "childrens_camp",
+
+            # 🧗‍♀️ Outdoor & Nature (Table A only)
+            "campground",
+            "national_park",
+            "beach"
+            # Note: beach, mountain, lake, river, hiking_area, scenic_view not in Table A
+
+            # 🍽️ Food & Drink
             "restaurant",
             "cafe",
-            "bar",
             "bakery",
-            "food",
-            "meal_delivery",
-            "meal_takeaway",
-            
-            # Shopping - Universal needs
+            "bar",
+            "food_court",
+            "ice_cream_shop",
+
+            # 🛍️ Shopping & Local Markets
             "shopping_mall",
-            "supermarket",
+            "market",
+            "souvenir_shop",
             "book_store",
-                       
-            "natural_feature",
-            
-            "beach",
-            
-            # Education - Learning opportunities
-            "library",
-            "university",
-            "school",
-            
-            
-        
+            "supermarket",
+
+            # 🏖️ Leisure & Entertainment
+            "spa",
+            "night_club",
+            "movie_theater",
+            "casino",
+            "stadium",
+            "event_venue",
+            "performing_arts_theater",
         ]
     
     @staticmethod
-    def get_food_types() -> List[str]:
-        """Get all food and drink related place types"""
-        return PlaceTypes.get_types_by_category(PlaceTypeCategory.FOOD_DRINK, "A") + \
-               PlaceTypes.get_types_by_category(PlaceTypeCategory.FOOD_DRINK, "B")
+    def _get_top_preferences(weights: dict, limit: int = 3) -> str:
+        """Extract top N preferences as concise string."""
+        if not weights:
+            return "none"
+        sorted_prefs = sorted(weights.items(), key=lambda x: x[1], reverse=True)[:limit]
+        return ", ".join([f"{k}:{v:.2f}" for k, v in sorted_prefs])
     
     @staticmethod
-    def get_attraction_types() -> List[str]:
-        """Get all attraction and entertainment related place types"""
-        return PlaceTypes.get_types_by_category(PlaceTypeCategory.ENTERTAINMENT_RECREATION, "A") + \
-               PlaceTypes.get_types_by_category(PlaceTypeCategory.CULTURE, "A")
-    
-    @staticmethod
-    def get_shopping_types() -> List[str]:
-        """Get all shopping related place types"""
-        return PlaceTypes.get_types_by_category(PlaceTypeCategory.SHOPPING, "A") + \
-               PlaceTypes.get_types_by_category(PlaceTypeCategory.SHOPPING, "B")
-    
-    @staticmethod
-    def is_valid_type(place_type: str, table: str = "A") -> bool:
+    def _normalize_weights(weights: Dict[str, float]) -> Dict[str, float]:
         """
-        Check if a place type is valid for the specified table
+        Normalize weights to 0-1 range where max weight = 1.0
         
         Args:
-            place_type: The place type to validate
-            table: "A" for Table A types, "B" for Table B types
+            weights: Dictionary of item -> weight
             
         Returns:
-            True if the type is valid for the specified table
+            Normalized weights where highest weight is 1.0
         """
-        if table.upper() == "A":
-            return place_type in ALL_TABLE_A_TYPES
-        elif table.upper() == "B":
-            return place_type in ALL_TABLE_B_TYPES
-        else:
-            raise ValueError("Table must be 'A' or 'B'")
+        if not weights:
+            return {}
+        
+        max_weight = max(weights.values())
+        if max_weight <= 0:
+            return weights
+        
+        # Scale so max weight = 1.0
+        return {k: min(v / max_weight, 1.0) for k, v in weights.items()}
     
     @staticmethod
-    def get_category_for_type(place_type: str) -> PlaceTypeCategory:
+    def _get_base_preferences(
+        user_preference: "UserPreference",
+        travel_style: TravelStyle
+    ) -> tuple:
         """
-        Get the category for a specific place type
+        Extract base preferences for the specified travel style.
+        
+        Returns:
+            Tuple of (travel_pref, food_pref) or (None, None) if not found
+        """
+        if not user_preference:
+            return None, None
+        
+        travel_pref = user_preference.travel.get(travel_style.value)
+        if not travel_pref:
+            # Fallback to first available travel preference
+            travel_pref = next(iter(user_preference.travel.values())) if user_preference.travel else None
+        
+        food_pref = user_preference.food.get(travel_style.value) if travel_pref else None
+        
+        return travel_pref, food_pref
+    
+    @staticmethod
+    def _merge_override_with_base(
+        base_travel_pref,
+        base_food_pref,
+        ephemeral_override: Optional["PreferenceOverride"],
+        override_multiplier: float = 3.0
+    ) -> Dict[str, Any]:
+        """
+        Merge ephemeral override with base preferences.
+        Override gets higher weight (3x by default).
+        
+        Returns:
+            Dictionary with merged weights and constraints
+        """
+        # Initialize with base preferences (handle None)
+        merged = {
+            "activity_weights": dict(base_travel_pref.activity_weights or {}) if base_travel_pref else {},
+            "style_weights": dict(base_travel_pref.travel_style_weights or {}) if base_travel_pref else {},
+            "cuisine_weights": dict(base_food_pref.cuisine_weights or {}) if base_food_pref else {},
+            "excluded_types": [],
+            "must_include_keywords": [],
+            "avoided_activities": []
+        }
+        
+        # Merge override if provided and still valid
+        if ephemeral_override and ephemeral_override.alive():
+            # Merge travel override
+            if ephemeral_override.travel:
+                # TravelOverride uses 'weights' not 'activity_weights'
+                for activity, weight in (ephemeral_override.travel.weights or {}).items():
+                    current = merged["activity_weights"].get(activity, 0)
+                    # Positive weights boost, negative weights avoid
+                    if weight > 0:
+                        merged["activity_weights"][activity] = current + (weight * override_multiplier)
+                    elif weight < -0.5:
+                        merged["avoided_activities"].append(activity)
+                        merged["activity_weights"][activity] = 0.05  # Near zero
+            
+            # Merge food override
+            if ephemeral_override.food:
+                # FoodOverride uses 'weights' not 'cuisine_weights'
+                for cuisine, weight in (ephemeral_override.food.weights or {}).items():
+                    current = merged["cuisine_weights"].get(cuisine, 0)
+                    if weight > 0:
+                        merged["cuisine_weights"][cuisine] = current + (weight * override_multiplier)
+                    elif weight < -0.5:
+                        # Strongly avoid this cuisine
+                        merged["excluded_types"].append(cuisine)
+        
+        return merged
+    
+    @staticmethod
+    def _format_preferences_for_prompt(
+        merged: Dict[str, Any],
+        base_food_pref,
+        travel_style: str
+    ) -> Dict[str, str]:
+        """
+        Format merged preferences into prompt-ready strings.
+        All weights are normalized to 0-1 range.
+        
+        Returns:
+            Dictionary with formatted strings: activities, styles, food_prefs
+        """
+        from prompt.location_types import STYLE_GUIDANCE
+        
+        # Normalize weights to 0-1 range
+        activity_weights_normalized = PlaceTypes._normalize_weights(merged["activity_weights"])
+        style_weights_normalized = PlaceTypes._normalize_weights(merged["style_weights"])
+        cuisine_weights_normalized = PlaceTypes._normalize_weights(merged["cuisine_weights"])
+        
+        # Format activities with avoids
+        activities = PlaceTypes._get_top_preferences(activity_weights_normalized)
+        if merged["avoided_activities"]:
+            activities = f"{activities}, ❌ AVOID: {', '.join(merged['avoided_activities'])}"
+        
+        # Format styles
+        styles = PlaceTypes._get_top_preferences(style_weights_normalized)
+        
+        # Format food preferences
+        food_parts = []
+        
+        # Add constraints first (most important)
+        if merged["must_include_keywords"]:
+            food_parts.append(f"✅ MUST HAVE: {', '.join(merged['must_include_keywords'])}")
+        if merged["excluded_types"]:
+            food_parts.append(f"❌ EXCLUDE: {', '.join(merged['excluded_types'])}")
+        
+        # Add cuisine preferences
+        if cuisine_weights_normalized:
+            cuisine = PlaceTypes._get_top_preferences(cuisine_weights_normalized, limit=3)
+            food_parts.append(f"cuisine={cuisine}")
+        
+        # Add base food preferences
+        if base_food_pref:
+            food_type = PlaceTypes._get_top_preferences(base_food_pref.food_type_weights or {}, limit=2)
+            if food_type != "none":
+                food_parts.append(f"type={food_type}")
+            if base_food_pref.alcohol_weight:
+                food_parts.append(f"alcohol:{base_food_pref.alcohol_weight:.2f}")
+        
+        food_prefs = ", ".join(food_parts) if food_parts else "none"
+        
+        # Get style guidance
+        style_guidance = STYLE_GUIDANCE.get(travel_style, "")
+        
+        return {
+            "activities": activities,
+            "styles": styles,
+            "food_prefs": food_prefs,
+            "style_guidance": style_guidance
+        }
+    
+    @staticmethod
+    def _build_selection_prompt(
+        destination: str,
+        all_types: List[str],
+        travel_style: str,
+        formatted_prefs: Dict[str, str],
+        duration_days: Optional[int] = None
+    ) -> str:
+        """
+        Build LLM prompt for place type selection.
         
         Args:
-            place_type: The place type to look up
+            destination: Destination name
+            all_types: List of all available place types
+            travel_style: Travel style string
+            formatted_prefs: Formatted preference strings
+            duration_days: Trip duration in days
             
         Returns:
-            The category for the place type, or None if not found
+            Complete prompt string for LLM
         """
-        for category, types in TABLE_A_TYPES.items():
-            if place_type in types:
-                return category
+        from prompt.location_types import SELECT_PLACE_TYPES_PROMPT
         
-        for category, types in TABLE_B_TYPES.items():
-            if place_type in types:
-                return category
+        min_types, max_types = calculate_place_type_range(duration_days)
+        duration_context = f"{duration_days}-day trip" if duration_days else "trip"
         
-        return None
+        return SELECT_PLACE_TYPES_PROMPT.format(
+            destination=destination,
+            all_types=', '.join(all_types),
+            travel_style=travel_style,
+            activities=formatted_prefs["activities"],
+            styles=formatted_prefs["styles"],
+            food_prefs=formatted_prefs["food_prefs"],
+            style_guidance=formatted_prefs["style_guidance"],
+            min_types=min_types,
+            max_types=max_types,
+            duration_context=duration_context
+        )
     
     @staticmethod
-    def get_travel_persona_types(persona: str) -> List[str]:
+    def _validate_and_postprocess(
+        llm_response_types: List[str],
+        all_types: List[str],
+        excluded_types: List[str]
+    ) -> List[str]:
         """
-        Get place types for a specific travel persona
+        Validate LLM response and apply post-processing rules.
         
         Args:
-            persona: The travel persona (e.g., 'solo_traveler', 'family_with_kids')
+            llm_response_types: Place types from LLM
+            all_types: Valid place types
+            excluded_types: Types to exclude
             
         Returns:
-            List of place types for the persona
+            Validated and processed list of 4-7 place types
         """
-        if persona in TRAVEL_PERSONA_TYPES:
-            return TRAVEL_PERSONA_TYPES[persona]["place_types"]
-        return []
+        # Validate: only keep valid types, cap at 7
+        valid_types = [t for t in llm_response_types if t in all_types][:7]
+        
+        # Apply hard exclusions
+        if excluded_types:
+            valid_types = [t for t in valid_types if t not in excluded_types]
+        
+        # Ensure at least one food type
+        food_types = {"restaurant", "cafe", "bakery", "bar", "food_court", "ice_cream_shop"}
+        if not any(t in food_types for t in valid_types):
+            # Add restaurant if not excluded
+            if "restaurant" not in excluded_types:
+                valid_types.append("restaurant")
+            elif "cafe" not in excluded_types:
+                valid_types.append("cafe")
+        
+        # Ensure minimum 4 types
+        if len(valid_types) < 4:
+            # Return safe defaults
+            defaults = ["restaurant", "tourist_attraction", "museum", "park"]
+            return [t for t in defaults if t not in excluded_types][:7] or defaults[:4]
+        
+        return valid_types
     
     @staticmethod
-    def get_travel_persona_keywords(persona: str) -> List[str]:
+    def select_types_for_user(
+        user_preference: "UserPreference",
+        destination: str,
+        travel_style: TravelStyle = TravelStyle.SOLO,
+        ephemeral_override: Optional["PreferenceOverride"] = None,
+        model: str = "gemini-flash",
+        duration_days: Optional[int] = None
+    ) -> List[str]:
         """
-        Get keywords for a specific travel persona (for LLM classification)
+        Use LLM to intelligently select place types based on destination and user preferences.
+        
+        This method combines base preferences with ephemeral overrides (recent user input),
+        normalizes all weights to 0-1 scale, and uses LLM to select contextually appropriate
+        place types for the destination.
+        
+        The number of place types scales with trip duration:
+        - 1-2 days: 4-6 types
+        - 3-5 days: 6-10 types
+        - 6-10 days: 10-15 types
+        - 11+ days: 15-20 types
         
         Args:
-            persona: The travel persona (e.g., 'solo_traveler', 'family_with_kids')
+            user_preference: UserPreference object with travel/food/stay preferences
+            destination: Destination name (e.g., "Tokyo", "Paris", "New York")
+            travel_style: Travel style to use (e.g., SOLO, FAMILY, COUPLE)
+            ephemeral_override: Optional recent user input (gets 3x weight vs base preferences)
+            model: LLM model to use (default: "gemini-flash")
+            duration_days: Trip duration in days (default: None, uses 4-7 types)
             
         Returns:
-            List of keywords for the persona
+            List of selected place types chosen by LLM based on destination and duration
         """
-        if persona in TRAVEL_PERSONA_TYPES:
-            return TRAVEL_PERSONA_TYPES[persona]["keywords"]
-        return []
-    
-    @staticmethod
-    def get_all_travel_personas() -> List[str]:
-        """
-        Get all available travel personas
+        from models.ai_models import create_vertex_ai_model
         
-        Returns:
-            List of all travel persona names
-        """
-        return list(TRAVEL_PERSONA_TYPES.keys())
-    
-    @staticmethod
-    def classify_travel_persona(user_input: str) -> List[str]:
-        """
-        Classify user input to determine likely travel personas
-        This is a simple keyword-based classification - can be enhanced with LLM
+        all_types = PlaceTypes.get_trip_planning_types()
         
-        Args:
-            user_input: User's travel description or preferences
+        travel_pref, food_pref = PlaceTypes._get_base_preferences(user_preference, travel_style)
+        
+        # Check if we have ANY preferences (base or override)
+        has_base_prefs = travel_pref is not None or food_pref is not None
+        has_override = ephemeral_override is not None and (
+            ephemeral_override.travel is not None or ephemeral_override.food is not None
+        )
+        
+        logger.info(f"[select_types_for_user] has_base_prefs={has_base_prefs}, has_override={has_override}")
+        
+        if not has_base_prefs and not has_override:
+            # No preferences at all (no base, no override), return defaults
+            logger.info("[select_types_for_user] No preferences available, returning defaults")
+            return ["restaurant", "tourist_attraction", "museum", "park", "historical_landmark", "spa"]
+        
+        # Step 2: Merge override with base (override gets 3x weight)
+        # This works even if base is None - override will be used
+        merged = PlaceTypes._merge_override_with_base(
+            travel_pref,
+            food_pref,
+            ephemeral_override,
+            override_multiplier=3.0
+        )
+        
+        # Step 3: Format preferences for prompt (with 0-1 normalized weights)
+        formatted_prefs = PlaceTypes._format_preferences_for_prompt(
+            merged,
+            food_pref,
+            travel_style.value
+        )
+        
+        # Step 4: Build LLM prompt
+        prompt = PlaceTypes._build_selection_prompt(
+            destination,
+            all_types,
+            travel_style.value,
+            formatted_prefs,
+            duration_days=duration_days
+        )
+        
+        
+        try:
+            llm = create_vertex_ai_model(model).with_structured_output(SelectedPlaceTypes)
+            response = llm.invoke(prompt)
             
-        Returns:
-            List of matching travel personas (ordered by relevance)
-        """
-        user_input_lower = user_input.lower()
-        persona_scores = {}
-        
-        for persona, data in TRAVEL_PERSONA_TYPES.items():
-            score = 0
-            for keyword in data["keywords"]:
-                if keyword.lower() in user_input_lower:
-                    score += 1
-            if score > 0:
-                persona_scores[persona] = score
-        
-        # Return personas sorted by score (highest first)
-        return sorted(persona_scores.keys(), key=lambda x: persona_scores[x], reverse=True)
-    
-    @staticmethod
-    def get_place_types_for_personas(personas: List[str]) -> List[str]:
-        """
-        Get combined place types for multiple travel personas
-        
-        Args:
-            personas: List of travel personas
+            # Step 6: Validate and post-process
+            return PlaceTypes._validate_and_postprocess(
+                response.place_types,
+                all_types,
+                merged["excluded_types"]
+            )
             
-        Returns:
-            Combined list of place types (with duplicates removed)
-        """
-        all_types = set()
-        for persona in personas:
-            types = PlaceTypes.get_travel_persona_types(persona)
-            all_types.update(types)
-        return list(all_types)
-    
-    @staticmethod
-    def get_comprehensive_trip_types() -> List[str]:
-        """
-        Get comprehensive place types that cover all travel personas
-        This is the most inclusive list for trip planning
-        
-        Returns:
-            Combined list of all place types from all travel personas
-        """
-        all_personas = PlaceTypes.get_all_travel_personas()
-        return PlaceTypes.get_place_types_for_personas(all_personas)
+        except Exception as e:
+            logger.error(f"LLM place type selection failed: {e}")
+            return ["restaurant", "tourist_attraction", "museum", "park", "cafe", "shopping_mall"]
 
 
-# Convenience functions for backward compatibility
-def get_trip_planning_types() -> List[str]:
-    """Get curated list of place types for trip planning"""
-    return PlaceTypes.get_trip_planning_types()
-
-def get_food_types() -> List[str]:
-    """Get all food and drink related place types"""
-    return PlaceTypes.get_food_types()
-
-def get_attraction_types() -> List[str]:
-    """Get all attraction and entertainment related place types"""
-    return PlaceTypes.get_attraction_types()
-
-def get_shopping_types() -> List[str]:
-    """Get all shopping related place types"""
-    return PlaceTypes.get_shopping_types()
-
-def is_valid_place_type(place_type: str, table: str = "A") -> bool:
-    """Check if a place type is valid for the specified table"""
-    return PlaceTypes.is_valid_type(place_type, table)
-
-# Travel Persona convenience functions
-def get_travel_persona_types(persona: str) -> List[str]:
-    """Get place types for a specific travel persona"""
-    return PlaceTypes.get_travel_persona_types(persona)
-
-def get_travel_persona_keywords(persona: str) -> List[str]:
-    """Get keywords for a specific travel persona (for LLM classification)"""
-    return PlaceTypes.get_travel_persona_keywords(persona)
-
-def get_all_travel_personas() -> List[str]:
-    """Get all available travel personas"""
-    return PlaceTypes.get_all_travel_personas()
-
-def classify_travel_persona(user_input: str) -> List[str]:
-    """Classify user input to determine likely travel personas"""
-    return PlaceTypes.classify_travel_persona(user_input)
-
-def get_place_types_for_personas(personas: List[str]) -> List[str]:
-    """Get combined place types for multiple travel personas"""
-    return PlaceTypes.get_place_types_for_personas(personas)
-
-def get_comprehensive_trip_types() -> List[str]:
-    """Get comprehensive place types that cover all travel personas"""
-    return PlaceTypes.get_comprehensive_trip_types()

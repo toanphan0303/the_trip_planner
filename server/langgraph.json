@@ -1,7 +1,8 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "trip_planner": "main_graph:graph"
+    "trip_planner": "main_graph:graph",
+    "travel_planner": "graphs.travel_planner:graph"
   },
   "env": ".env",
   "input_schema": {

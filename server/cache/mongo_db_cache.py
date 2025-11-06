@@ -111,6 +111,13 @@ class MongoDBCache:
                 ttl_days=30,
                 index_fields=['cache_key', 'created_at', 'expires_at', 'name', 'city', 'cc']
             ),
+            
+            # LLM Analysis caches
+            'destination_radius': CacheConfig(
+                collection_name='destination_radius',
+                ttl_days=90,  # Destination characteristics rarely change
+                index_fields=['cache_key', 'created_at', 'expires_at', 'destination', 'duration_days']
+            ),
         }
         
         self._connect()

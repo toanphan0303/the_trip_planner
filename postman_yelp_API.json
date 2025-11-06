@@ -1,0 +1,67 @@
+{
+    "info": {
+      "name": "Yelp Fusion API",
+      "_postman_id": "yelp-fusion-collection",
+      "description": "Postman collection for Yelp Fusion API: search businesses, get details, and fetch reviews (max 3).",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Search Businesses",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{YELP_API_KEY}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://api.yelp.com/v3/businesses/search?term={{TERM}}&location={{LOCATION}}&limit={{LIMIT}}&sort_by={{SORT_BY}}&price={{PRICE}}&categories={{CATEGORIES}}&open_now={{OPEN_NOW}}",
+            "protocol": "https",
+            "host": ["api","yelp","com"],
+            "path": ["v3","businesses","search"],
+            "query": [
+              { "key": "term", "value": "{{TERM}}" },
+              { "key": "location", "value": "{{LOCATION}}" },
+              { "key": "limit", "value": "{{LIMIT}}" },
+              { "key": "sort_by", "value": "{{SORT_BY}}" },
+              { "key": "price", "value": "{{PRICE}}" },
+              { "key": "categories", "value": "{{CATEGORIES}}" },
+              { "key": "open_now", "value": "{{OPEN_NOW}}" }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Get Business Details",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{YELP_API_KEY}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://api.yelp.com/v3/businesses/{{BUSINESS_ID}}",
+            "protocol": "https",
+            "host": ["api","yelp","com"],
+            "path": ["v3","businesses","{{BUSINESS_ID}}"]
+          }
+        }
+      },
+      {
+        "name": "Get Business Reviews",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{YELP_API_KEY}}", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://api.yelp.com/v3/businesses/{{BUSINESS_ID}}/reviews?locale={{LOCALE}}",
+            "protocol": "https",
+            "host": ["api","yelp","com"],
+            "path": ["v3","businesses","{{BUSINESS_ID}}","reviews"],
+            "query": [
+              { "key": "locale", "value": "{{LOCALE}}" }
+            ]
+          }
+        }
+      }
+    ]
+  }

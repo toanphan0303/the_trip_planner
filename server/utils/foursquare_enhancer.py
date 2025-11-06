@@ -2,7 +2,7 @@
 Foursquare enhancement utilities for integrating Foursquare API with Google Places data.
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, List
 from models.point_of_interest_models import PointOfInterest, Source
 from models.foursquare_model import (
     FoursquarePlacesMatchRequest,
@@ -113,11 +113,11 @@ _foursquare_enhancer = FoursquareEnhancer()
 
 
 def enhance_clusters_with_foursquare_data(
-    clusters: Dict[int, List[Any]],
+    clusters: Dict[int, List[PointOfInterest]],
     search_radius_m: int = 500,
     name_similarity_threshold: float = 0.6,
     enable_linking: bool = True,
-) -> Dict[int, List[Any]]:
+) -> Dict[int, List[PointOfInterest]]:
     """
     Enhance Google places (not just restaurants) with Foursquare data for clustered POIs.
     This runs after clustering to reduce API calls by focusing on survived items.
